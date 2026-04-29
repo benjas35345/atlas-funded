@@ -411,17 +411,14 @@ let cases = [
   {
     id: 'c1', reviewId: 'AF-2026-00142',
     traderEmail: 'alex.morgan@example.com', accountNumber: '208441',
-    accountSizeCents: 5000000, phase: 'FUNDED', product: 'TWO_STEP', accountType: 'INSTANT_FUNDED',
-    status: 'IN_REVIEW', reportedPnlCents: 284720, parsedPnlCents: 284720,
-    totalDeductionCents: 83250, payableAmountCents: 201470,
+    accountSizeCents: 5000000, phase: 'FUNDED', accountType: 'INSTANT_FUNDED',
+    status: 'DRAFT', reportedPnlCents: 284720, parsedPnlCents: null,
+    totalDeductionCents: 0, payableAmountCents: null,
     createdAt: '2026-04-29', decidedAt: null, lockedAt: null,
     reviewer: 'Cian',
-    upload: {
-      filename: 'closed_positions_2026-04-29_1222.csv',
-      sha256: '9f3ad56e22f70a0e8cb45f89d24d72c1b21e34ab78d4',
-      rowCount: 78, dateRangeStart: '2026-04-09', dateRangeEnd: '2026-04-29',
-    },
-    breaches: [
+    upload: null,
+    breaches: [],
+    _legacy_breaches_unused: [
       {
         id:'b1', ruleKey:'SUB_3_MIN', kind:'deduction', applied:true,
         suggestedDeductionCents: 41250,
@@ -473,47 +470,36 @@ let cases = [
       {
         id:'b5', ruleKey:'NEWS_TRADING', kind:'flag', applied:true,
         suggestedDeductionCents: 0,
-        meta: { eventCount:1, windowSec:180 },
+        meta: { eventCount:2, windowSec:180 },
         trades: [
-          { uid:'3914018', symbol:'EURUSD', open:'23 Apr 12:30:45', openIso:'2026-04-23T12:30:45Z',
-            close:'23 Apr 12:33:10', dur:'2m 25s', profit:2500,
-            event:'Core PCE m/m · USD · 2026-04-23T12:30:00Z', delta:'+45s after release' },
-          { uid:'3915812', symbol:'EURUSD', open:'25 Apr 13:42:01', openIso:'2026-04-25T13:42:01Z',
-            close:'25 Apr 13:42:38', dur:'37s', profit:1500,
-            event:'Treasury Secretary Speech · USD · 2026-04-25T13:42:00Z', delta:'+1s after release' },
+          {
+            uid:'3914018', symbol:'EURUSD', dur:'2m 25s', profit:2500,
+            open:'23 Apr 12:30:45', close:'23 Apr 12:33:10',
+            openIso:'2026-04-23T12:30:45Z', closeIso:'2026-04-23T12:33:10Z',
+            eventName:'Core PCE m/m', eventCurrency:'USD',
+            eventTimeIso:'2026-04-23T12:30:00Z', eventSource:'forexfactory.com',
+            matchedOn:'OPEN', deltaSeconds:45,
+          },
+          {
+            uid:'3915812', symbol:'EURUSD', dur:'37s', profit:1500,
+            open:'25 Apr 13:42:01', close:'25 Apr 13:42:38',
+            openIso:'2026-04-25T13:42:01Z', closeIso:'2026-04-25T13:42:38Z',
+            eventName:'Treasury Secretary Speech', eventCurrency:'USD',
+            eventTimeIso:'2026-04-25T13:42:00Z', eventSource:'forexfactory.com',
+            matchedOn:'OPEN', deltaSeconds:1,
+          },
         ],
       },
     ],
-    // For charts
-    dailyPnl: [
-      {date:'09', v:200},  {date:'10', v:80},   {date:'11', v:300}, {date:'12', v:-220}, {date:'13', v:120},
-      {date:'14', v:380},  {date:'15', v:-340, flag:'XAUUSD breach'}, {date:'16', v:100}, {date:'17', v:260},
-      {date:'18', v:-140}, {date:'19', v:200},  {date:'20', v:320}, {date:'21', v:140},  {date:'22', v:-100},
-      {date:'23', v:280},  {date:'24', v:360},  {date:'25', v:220}, {date:'26', v:80},   {date:'27', v:300},
-      {date:'28', v:140},  {date:'29', v:200},
-    ],
-    perSymbolPnl: [
-      { symbol:'NAS100', pnl:142000 },
-      { symbol:'EURUSD', pnl:81200 },
-      { symbol:'XAUUSD', pnl:-34000 },
-      { symbol:'US30',   pnl:50100 },
-      { symbol:'GBPUSD', pnl:30500 },
-      { symbol:'USDJPY', pnl:-9500 },
-      { symbol:'others', pnl:24400 },
-    ],
-    durationHist: [
-      { lo:0,hi:30,count:38,sub3:true},{lo:31,hi:60,count:24,sub3:true},
-      {lo:61,hi:120,count:16,sub3:true},{lo:121,hi:180,count:12,sub3:true},
-      {lo:181,hi:300,count:18,sub3:false},{lo:301,hi:600,count:24,sub3:false},
-      {lo:601,hi:1800,count:46,sub3:false},{lo:1801,hi:3600,count:62,sub3:false},
-      {lo:3601,hi:7200,count:78,sub3:false},{lo:7201,hi:21600,count:80,sub3:false},
-      {lo:21601,hi:86400,count:34,sub3:false},{lo:86401,hi:null,count:6,sub3:false},
-    ],
+    // Charts populate from the engine after a CSV is uploaded — no seeded values.
+    dailyPnl: [],
+    perSymbolPnl: [],
+    durationHist: [],
   },
   {
     id: 'c2', reviewId: 'AF-2026-00141',
     traderEmail: 'jordan.clarke@example.com', accountNumber: '198322',
-    accountSizeCents: 2500000, phase: 'FUNDED', product: 'STANDARD', accountType: 'INSTANT_FUNDED',
+    accountSizeCents: 2500000, phase: 'FUNDED', accountType: 'INSTANT_FUNDED',
     status: 'DECIDED', reportedPnlCents: 189240, parsedPnlCents: 189240,
     totalDeductionCents: 0, payableAmountCents: 189240,
     createdAt: '2026-04-25', decidedAt: '2026-04-25', lockedAt: '2026-04-25',
@@ -525,7 +511,7 @@ let cases = [
   {
     id: 'c3', reviewId: 'AF-2026-00140',
     traderEmail: 'sam.lee@example.com', accountNumber: '174206',
-    accountSizeCents: 10000000, phase: 'FUNDED', product: 'TWO_STEP', accountType: 'THREE_STEP',
+    accountSizeCents: 10000000, phase: 'FUNDED', accountType: 'THREE_STEP',
     status: 'DECIDED', reportedPnlCents: 412080, parsedPnlCents: 412080,
     totalDeductionCents: 412080, payableAmountCents: 0,
     createdAt: '2026-04-22', decidedAt: '2026-04-22', lockedAt: '2026-04-22',
@@ -535,6 +521,390 @@ let cases = [
     breaches: [],
   },
 ];
+
+/* ─── REAL CSV parser + engine (matches production) ─────────────────────── */
+
+const CONTRACT_SIZE_TABLE = {
+  EURUSD:100000, GBPUSD:100000, USDJPY:100000, USDCHF:100000, AUDUSD:100000,
+  USDCAD:100000, NZDUSD:100000, EURGBP:100000, EURJPY:100000, GBPJPY:100000,
+  AUDJPY:100000, EURAUD:100000,
+  XAUUSD:100, XAGUSD:5000,
+  NAS100:1, US30:1, SPX500:1, GER40:1, UK100:1, JPN225:1,
+  USOIL:1000, UKOIL:1000,
+  BTCUSD:1, ETHUSD:1,
+};
+
+function parseCsvLine(line) {
+  const out = []; let cur = ''; let inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuote) {
+      if (c === '"' && line[i+1] === '"') { cur += '"'; i++; }
+      else if (c === '"') inQuote = false;
+      else cur += c;
+    } else if (c === '"') inQuote = true;
+    else if (c === ',') { out.push(cur); cur = ''; }
+    else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+
+function parseCsvText(rawText) {
+  const text = rawText.charCodeAt(0) === 0xFEFF ? rawText.slice(1) : rawText;
+  const lines = text.split(/\r?\n/).filter(l => l.length > 0);
+  if (lines.length < 1) throw new Error('empty CSV');
+  const headers = parseCsvLine(lines[0]);
+  const required = ['account','account_user_email','account_size','uid','direction','profit',
+                    'volume','close_volume','symbol','commission','swap','open_time','open_price',
+                    'close_time','close_price'];
+  const missing = required.filter(c => !headers.includes(c));
+  if (missing.length) throw new Error('missing columns: ' + missing.join(', '));
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const fields = parseCsvLine(lines[i]);
+    const row = {};
+    for (let j = 0; j < headers.length; j++) row[headers[j]] = fields[j] ?? '';
+    rows.push(row);
+  }
+  return rows;
+}
+
+function parseMoneyToCents(s) {
+  const cleaned = String(s ?? '').replace(/[$,£€¥\s]/g, '');
+  if (cleaned === '') return 0;
+  const n = Number(cleaned);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100);
+}
+
+function parseUtcMs(s) {
+  const t = String(s ?? '').trim();
+  if (!t) return NaN;
+  const hasTz = /Z$|[+-]\d{2}:?\d{2}$/.test(t);
+  // "2026-04-28 15:41:09+00:00" works directly with Date.parse on most engines;
+  // for "2026-04-28 15:41:09" without TZ we treat as UTC.
+  const candidate = hasTz ? t.replace(' ', 'T') : t.replace(' ', 'T') + 'Z';
+  return Date.parse(candidate);
+}
+
+function csvRowToTrade(row) {
+  const openMs = parseUtcMs(row.open_time);
+  const closeMs = parseUtcMs(row.close_time);
+  return {
+    uid: String(row.uid).trim(),
+    symbol: String(row.symbol).trim(),
+    direction: Number(row.direction),
+    profitCents: parseMoneyToCents(row.profit),
+    commissionCents: parseMoneyToCents(row.commission),
+    swapCents: parseMoneyToCents(row.swap),
+    volume: Number(row.volume) || 0,
+    closeVolume: Number(row.close_volume) || 0,
+    openTimeMs: openMs,
+    closeTimeMs: closeMs,
+    openPrice: Number(row.open_price) || 0,
+    closePrice: Number(row.close_price) || 0,
+    durationSeconds: Math.max(0, Math.floor((closeMs - openMs) / 1000)),
+  };
+}
+
+function detectAccountTypeFromString(accountStr) {
+  const s = String(accountStr).toLowerCase();
+  if (s.includes('instant funded') || s.includes('instant')) return 'INSTANT_FUNDED';
+  if (s.includes('1 step pro') || s.includes('one step pro')) return 'ONE_STEP_PRO';
+  if (s.includes('2 step pro') || s.includes('two step pro')) return 'TWO_STEP_PRO';
+  if (s.includes('3 step') || s.includes('three step'))      return 'THREE_STEP';
+  if (s.includes('1 step') || s.includes('one step'))        return 'ONE_STEP';
+  if (s.includes('2 step') || s.includes('two step'))        return 'TWO_STEP';
+  if (s.includes('all access'))                              return 'ALL_ACCESS';
+  return 'INSTANT_FUNDED';
+}
+
+function utcDayOf(ms) {
+  const d = new Date(ms);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function durString(s) {
+  if (!Number.isFinite(s) || s <= 0) return '0s';
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+  const parts = [];
+  if (h) parts.push(h + 'h');
+  if (h || m) parts.push(m + 'm');
+  parts.push(sec + 's');
+  return parts.join(' ');
+}
+
+function isoUtcShort(ms) {
+  const d = new Date(ms);
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()];
+  const time = `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}:${String(d.getUTCSeconds()).padStart(2,'0')}`;
+  return `${day} ${mon} ${time}`;
+}
+
+// ── Rules ────────────────────────────────────────────────────────────────
+function runSubThreeMin(trades, cutoffSec) {
+  const offending = trades.filter(t => t.durationSeconds <= cutoffSec && t.profitCents > 0);
+  if (offending.length === 0) return null;
+  offending.sort((a,b) => a.closeTimeMs - b.closeTimeMs);
+  const total = offending.reduce((s,t) => s + t.profitCents, 0);
+  return {
+    id: 'b-sub3', ruleKey: 'SUB_3_MIN', kind: 'deduction', applied: true,
+    suggestedDeductionCents: total,
+    trades: offending.map(t => ({
+      uid: t.uid, symbol: t.symbol,
+      open: isoUtcShort(t.openTimeMs), close: isoUtcShort(t.closeTimeMs),
+      dur: durString(t.durationSeconds), profit: t.profitCents,
+    })),
+  };
+}
+
+function runConcentratedDailyLoss(trades, ctx, multiplier) {
+  const groups = new Map();
+  for (const t of trades) {
+    const day = utcDayOf(t.closeTimeMs);
+    const key = `${t.symbol}|${day}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(t);
+  }
+  const thresholdCents = Math.round(ctx.balanceCents * ctx.dailyDd * multiplier);
+  const findings = [];
+  const keys = [...groups.keys()].sort((a,b) => {
+    const [as, ad] = a.split('|'); const [bs, bd] = b.split('|');
+    if (ad !== bd) return ad < bd ? -1 : 1;
+    return as < bs ? -1 : 1;
+  });
+  for (const key of keys) {
+    const ts = groups.get(key);
+    let netLoss = 0;
+    for (const t of ts) if (t.profitCents < 0) netLoss += -t.profitCents;
+    if (netLoss <= thresholdCents) continue;
+    const [symbol, date] = key.split('|');
+    const sorted = [...ts].sort((a,b) => a.closeTimeMs - b.closeTimeMs);
+    findings.push({
+      id: `b-cdl-${date}-${symbol}`, ruleKey: 'CONCENTRATED_DAILY_LOSS',
+      kind: 'flag', applied: true, suggestedDeductionCents: 0,
+      meta: { symbol, date, netLoss, threshold: thresholdCents, overBy: netLoss - thresholdCents },
+      trades: sorted.map(t => ({
+        uid: t.uid, symbol: t.symbol,
+        open: isoUtcShort(t.openTimeMs), close: isoUtcShort(t.closeTimeMs),
+        dur: durString(t.durationSeconds), profit: t.profitCents,
+      })),
+    });
+  }
+  return findings;
+}
+
+function runTickScalping(trades, clusterSize, windowSec) {
+  if (trades.length < clusterSize) return [];
+  const sorted = [...trades].sort((a,b) => a.openTimeMs - b.openTimeMs || (a.uid < b.uid ? -1 : 1));
+  const candidates = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const win = [sorted[i]];
+    for (let j = i+1; j < sorted.length; j++) {
+      if (sorted[j].openTimeMs - sorted[i].openTimeMs <= windowSec * 1000) win.push(sorted[j]);
+      else break;
+    }
+    if (win.length >= clusterSize) candidates.push(win);
+  }
+  const merged = [];
+  let cur = null, curUids = new Set();
+  for (const c of candidates) {
+    if (!cur) { cur = [...c]; curUids = new Set(c.map(t => t.uid)); continue; }
+    const overlaps = c.some(t => curUids.has(t.uid));
+    if (overlaps) for (const t of c) if (!curUids.has(t.uid)) { cur.push(t); curUids.add(t.uid); }
+    else { merged.push(cur); cur = [...c]; curUids = new Set(c.map(t => t.uid)); }
+  }
+  if (cur) merged.push(cur);
+  return merged.map((cluster, i) => {
+    const start = cluster[0].openTimeMs;
+    const end = cluster[cluster.length-1].openTimeMs;
+    return {
+      id: `b-tick-${i}-${start}`, ruleKey: 'TICK_SCALPING_CLUSTER',
+      kind: 'flag', applied: true, suggestedDeductionCents: 0,
+      meta: {
+        windowStart: isoUtcShort(start), windowEnd: isoUtcShort(end),
+        span: durString(Math.floor((end - start) / 1000)),
+      },
+      trades: cluster.map(t => ({
+        uid: t.uid, symbol: t.symbol,
+        open: isoUtcShort(t.openTimeMs), close: isoUtcShort(t.closeTimeMs),
+        dur: durString(t.durationSeconds), profit: t.profitCents,
+      })),
+    };
+  });
+}
+
+function runExcessiveMargin(trades, ctx, maxFraction, leverage) {
+  const flagged = [];
+  for (const t of trades) {
+    const cs = CONTRACT_SIZE_TABLE[t.symbol] ?? 100000;
+    const notionalCents = Math.round(t.volume * cs * t.openPrice * 100);
+    const marginCents = Math.round(notionalCents / leverage);
+    const fraction = ctx.balanceCents > 0 ? marginCents / ctx.balanceCents : 0;
+    if (fraction > maxFraction) flagged.push({ ...t, fraction });
+  }
+  if (flagged.length === 0) return null;
+  flagged.sort((a,b) => a.closeTimeMs - b.closeTimeMs);
+  const total = flagged.reduce((s,t) => s + (t.profitCents > 0 ? t.profitCents : 0), 0);
+  return {
+    id: 'b-margin', ruleKey: 'EXCESSIVE_MARGIN_USAGE',
+    kind: 'deduction', applied: true,
+    suggestedDeductionCents: total,
+    trades: flagged.map(t => ({
+      uid: t.uid, symbol: t.symbol,
+      open: isoUtcShort(t.openTimeMs), close: isoUtcShort(t.closeTimeMs),
+      dur: durString(t.durationSeconds), profit: t.profitCents,
+      notional: `${(t.fraction*100).toFixed(0)}% margin`,
+    })),
+  };
+}
+
+function runNewsTradingRule(trades, events, windowSec) {
+  const byEvent = new Map();
+  for (const ev of events) {
+    if (ev.impact !== 'HIGH') continue;
+    const evMs = Date.parse(ev.timeUtc);
+    const affected = CURRENCY_AFFECTS[ev.currency] || [];
+    for (const t of trades) {
+      if (!affected.includes(t.symbol)) continue;
+      const dOpen = t.openTimeMs - evMs;
+      const dClose = t.closeTimeMs - evMs;
+      const matchedOn = Math.abs(dOpen) <= windowSec*1000 ? 'OPEN'
+                       : Math.abs(dClose) <= windowSec*1000 ? 'CLOSE' : null;
+      if (!matchedOn) continue;
+      const delta = matchedOn === 'OPEN' ? dOpen : dClose;
+      if (!byEvent.has(ev.id)) byEvent.set(ev.id, { event: ev, rows: [] });
+      byEvent.get(ev.id).rows.push({
+        uid: t.uid, symbol: t.symbol,
+        open: isoUtcShort(t.openTimeMs), close: isoUtcShort(t.closeTimeMs),
+        openIso: new Date(t.openTimeMs).toISOString(),
+        closeIso: new Date(t.closeTimeMs).toISOString(),
+        eventName: ev.name, eventCurrency: ev.currency,
+        eventTimeIso: ev.timeUtc, eventSource: ev.source,
+        matchedOn, deltaSeconds: Math.round(delta / 1000),
+        dur: durString(t.durationSeconds), profit: t.profitCents,
+      });
+    }
+  }
+  return [...byEvent.values()]
+    .sort((a,b) => Date.parse(a.event.timeUtc) - Date.parse(b.event.timeUtc))
+    .map(({ event, rows }) => ({
+      id: `b-news-${event.id}`, ruleKey: 'NEWS_TRADING',
+      kind: 'flag', applied: true, suggestedDeductionCents: 0,
+      meta: { eventCount: 1, windowSec, event: event.name + ' · ' + event.currency },
+      trades: rows.sort((a,b) => a.openIso.localeCompare(b.openIso)),
+    }));
+}
+
+function buildAggregatesFromTrades(trades) {
+  if (trades.length === 0) return { dailyPnl: [], perSymbolPnl: [], durationHist: [] };
+  // Daily P&L (cents)
+  const daily = new Map();
+  for (const t of trades) {
+    const d = utcDayOf(t.closeTimeMs);
+    daily.set(d, (daily.get(d) ?? 0) + t.profitCents);
+  }
+  const dailyPnl = [...daily.entries()].sort((a,b) => a[0].localeCompare(b[0]))
+    .map(([d, v]) => ({ date: d.slice(8,10), v: v/100 }));
+  // Per-symbol P&L (cents → dollars)
+  const sym = new Map();
+  for (const t of trades) sym.set(t.symbol, (sym.get(t.symbol) ?? 0) + t.profitCents);
+  const perSymbolPnl = [...sym.entries()].map(([symbol, pnl]) => ({ symbol, pnl }))
+    .sort((a,b) => Math.abs(b.pnl) - Math.abs(a.pnl));
+  // Duration histogram
+  const buckets = [
+    {lo:0,hi:30,sub3:true},{lo:31,hi:60,sub3:true},{lo:61,hi:120,sub3:true},{lo:121,hi:180,sub3:true},
+    {lo:181,hi:300,sub3:false},{lo:301,hi:600,sub3:false},{lo:601,hi:1800,sub3:false},
+    {lo:1801,hi:3600,sub3:false},{lo:3601,hi:7200,sub3:false},{lo:7201,hi:21600,sub3:false},
+    {lo:21601,hi:86400,sub3:false},{lo:86401,hi:null,sub3:false},
+  ].map(b => ({ ...b, count: 0 }));
+  for (const t of trades) {
+    for (const b of buckets) {
+      if (t.durationSeconds >= b.lo && (b.hi === null || t.durationSeconds <= b.hi)) {
+        b.count++; break;
+      }
+    }
+  }
+  return { dailyPnl, perSymbolPnl, durationHist: buckets };
+}
+
+async function sha256Hex(buf) {
+  if (!('crypto' in window) || !crypto.subtle) return 'sha256-unavailable';
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function runRealEngineOnFile(file, c) {
+  const buf = await file.arrayBuffer();
+  const text = new TextDecoder('utf-8').decode(buf);
+  const sha = await sha256Hex(buf);
+  const rows = parseCsvText(text);
+  if (rows.length === 0) throw new Error('CSV had no trade rows');
+
+  // Account info comes from the CSV — overrides whatever was on the case form.
+  const accountStr = rows[0].account;
+  const accountSizeCents = parseMoneyToCents(rows[0].account_size);
+  const traderEmail = String(rows[0].account_user_email || '').toLowerCase().trim();
+  const accountType = detectAccountTypeFromString(accountStr);
+  const at = accountTypes[accountType];
+  if (!at) throw new Error('unknown account type detected: ' + accountType);
+
+  const trades = rows.map(csvRowToTrade)
+    .filter(t => Number.isFinite(t.openTimeMs) && Number.isFinite(t.closeTimeMs));
+  if (trades.length === 0) throw new Error('no parseable trades in CSV');
+
+  const ctx = { balanceCents: accountSizeCents, dailyDd: at.dailyDd, accountType };
+  const findings = [];
+
+  // Sub-3-min — applies to all phases.
+  const sub3 = runSubThreeMin(trades, ruleConfig['sub_3_min.threshold_seconds']);
+  if (sub3) findings.push(sub3);
+
+  // Funded-only rules.
+  if (c.phase === 'FUNDED') {
+    const cdl = runConcentratedDailyLoss(trades, ctx,
+      ruleConfig['concentrated_daily_loss.per_asset_limit_multiplier']);
+    findings.push(...cdl);
+    const em = runExcessiveMargin(trades, ctx,
+      ruleConfig['excessive_margin.max_margin_fraction'],
+      ruleConfig['excessive_margin.leverage_multiplier']);
+    if (em) findings.push(em);
+  }
+
+  // Tick scalping — all phases.
+  findings.push(...runTickScalping(trades,
+    ruleConfig['tick_scalping.cluster_size'],
+    ruleConfig['tick_scalping.window_seconds']));
+
+  // News trading — all phases.
+  findings.push(...runNewsTradingRule(trades, economicEvents,
+    ruleConfig['news_trading.window_seconds']));
+
+  // Aggregates for charts.
+  const aggs = buildAggregatesFromTrades(trades);
+
+  // Summary
+  const earliest = Math.min(...trades.map(t => t.closeTimeMs));
+  const latest = Math.max(...trades.map(t => t.closeTimeMs));
+  const totalPnl = trades.reduce((s,t) => s + t.profitCents, 0);
+
+  return {
+    findings, aggs,
+    upload: {
+      filename: file.name, sha256: sha,
+      rowCount: trades.length,
+      dateRangeStart: utcDayOf(earliest),
+      dateRangeEnd: utcDayOf(latest),
+    },
+    parsedPnlCents: totalPnl,
+    account: { accountStr, accountSizeCents, accountType, traderEmail },
+  };
+}
 
 /* ─── routing ───────────────────────────────────────────────────────────── */
 
@@ -723,14 +1093,6 @@ function renderNewCase() {
             <option value="FUNDED" selected>Funded</option>
           </select>
         </div>
-        <div class="field"><label>Product (pricing tier)</label>
-          <select name="product">
-            <option value="FREE">Free Access</option>
-            <option value="ONE_DOLLAR">$1 Access</option>
-            <option value="STANDARD">Standard</option>
-            <option value="TWO_STEP" selected>Two-Step Access</option>
-          </select>
-        </div>
         <div style="grid-column:span 2;display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
           <button class="btn" type="button" onclick="go('#/cases')">Cancel</button>
           <button class="btn primary" type="submit">Create case →</button>
@@ -867,7 +1229,7 @@ function caseHeader(c, livePayable, liveDeduction) {
     <div class="hero">
       <div class="eyebrow" style="margin-bottom:4px">Payout review · ${c.reviewId}</div>
       <h1>Payout review — ${escapeHtml(c.traderEmail)}</h1>
-      <div class="sub">Account #${c.accountNumber} · ${fmtCents(c.accountSizeCents,{compact:true})} · ${at?.label || c.accountType} (${ddLabel}) · ${c.product.replaceAll('_',' ')} · ${c.upload?.rowCount || 0} trades</div>
+      <div class="sub">Account #${c.accountNumber} · ${fmtCents(c.accountSizeCents,{compact:true})} · ${at?.label || c.accountType} (${ddLabel}) · ${c.upload?.rowCount || 0} trades</div>
 
       <div class="hero-meta">
         <span><b>Reported P&amp;L</b> ${fmtCents(c.reportedPnlCents)}</span>
@@ -911,27 +1273,37 @@ function renderFinding(c, b) {
           <span class="finding-name">${ruleLabel(b.ruleKey)}</span>
           <span class="finding-tag ${kind}">${isDeductionKind(b) ? 'Deduction' : 'Manual review'}</span>
         </div>
-        <div class="r">
+        <div class="r" onclick="event.stopPropagation()" style="gap:10px">
           <span>${trades.length} trade${trades.length === 1 ? '' : 's'}</span>
-          ${isDeductionKind(b) ? `
-            <label style="display:flex;align-items:center;gap:8px;font-family:'Inter';font-size:11px;color:var(--muted)">
-              <input type="checkbox" class="toggle" ${b.applied ? 'checked':''} ${isLocked ? 'disabled':''}
-                onclick="event.stopPropagation()"
-                onchange="toggleBreach('${c.id}','${b.id}', this.checked)" />
-              apply −${fmtCents(b.suggestedDeductionCents)}
-            </label>
-          ` : '<span class="flag">flag only</span>'}
+          <label style="display:flex;align-items:center;gap:6px;font-family:'Inter';font-size:11px;color:var(--muted)">
+            <span style="color:var(--faint)">deduct $</span>
+            <input type="number" step="0.01" min="0" inputmode="decimal"
+              value="${(b.suggestedDeductionCents/100).toFixed(2)}"
+              ${isLocked ? 'disabled' : ''}
+              onclick="event.stopPropagation()"
+              onchange="setBreachDeduction('${c.id}','${b.id}', this.value)"
+              style="width:90px;background:var(--bg-elev);border:1px solid var(--line-strong);
+                border-radius:6px;padding:4px 8px;font-family:'JetBrains Mono',monospace;font-size:11px;
+                color:var(--ink);text-align:right" />
+            <input type="checkbox" class="toggle" ${b.applied ? 'checked':''} ${isLocked ? 'disabled':''}
+              onclick="event.stopPropagation()"
+              onchange="toggleBreach('${c.id}','${b.id}', this.checked)" />
+            apply
+          </label>
         </div>
       </summary>
       <div class="body">
         <div class="rule-quote">${escapeHtml(wording.split('\n\n')[0].replace(/\*\*/g,''))}</div>
         ${b.meta ? renderBreachMeta(b) : ''}
-        ${trades.length > 0 ? `
+        ${renderTradeUidChips(trades)}
+        ${b.ruleKey === 'NEWS_TRADING'
+          ? renderNewsTradesTable(trades)
+          : trades.length > 0 ? `
           <table class="trade-table">
             <thead>
               <tr>
                 <th>UID</th><th>Symbol</th><th>Open · Close (UTC)</th><th>Duration</th>
-                ${b.ruleKey === 'REPEATED_EXCESSIVE_MARGIN' ? '<th>Notional</th>' : ''}
+                ${b.ruleKey === 'EXCESSIVE_MARGIN_USAGE' || b.ruleKey === 'REPEATED_EXCESSIVE_MARGIN' ? '<th>Margin</th>' : ''}
                 <th style="text-align:right">Profit</th>
               </tr>
             </thead>
@@ -942,7 +1314,7 @@ function renderFinding(c, b) {
                   <td class="sym">${t.symbol}</td>
                   <td>${escapeHtml(t.open)} → ${escapeHtml(t.close)}</td>
                   <td>${t.dur}</td>
-                  ${b.ruleKey === 'REPEATED_EXCESSIVE_MARGIN' ? `<td>${t.notional}</td>` : ''}
+                  ${b.ruleKey === 'EXCESSIVE_MARGIN_USAGE' || b.ruleKey === 'REPEATED_EXCESSIVE_MARGIN' ? `<td>${t.notional || ''}</td>` : ''}
                   <td class="num ${t.profit >= 0 ? 'plus':'minus'}">${fmtCents(t.profit,{sign:'always'})}</td>
                 </tr>
               `).join('')}
@@ -950,6 +1322,86 @@ function renderFinding(c, b) {
           </table>` : ''}
       </div>
     </details>
+  `;
+}
+
+function renderTradeUidChips(trades) {
+  if (!trades || trades.length === 0) return '';
+  return `
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 14px">
+      <span style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:500;margin-right:4px">
+        Trade IDs (${trades.length})
+      </span>
+      ${trades.map(t => `
+        <span class="mono" style="font-size:11px;background:var(--bg-elev);
+          border:1px solid var(--line-strong);padding:2px 8px;border-radius:99px;color:var(--ink)">
+          ${escapeHtml(t.uid)}
+        </span>
+      `).join('')}
+    </div>
+  `;
+}
+
+function formatDeltaSeconds(seconds) {
+  const sign = seconds >= 0 ? 'after' : 'before';
+  const abs = Math.abs(seconds);
+  const m = Math.floor(abs / 60);
+  const s = abs % 60;
+  const dur = m > 0 ? `${m}m ${s}s` : `${s}s`;
+  return `${dur} ${sign} release`;
+}
+
+function renderNewsTradesTable(trades) {
+  if (!trades || trades.length === 0) return '';
+  return `
+    <table class="trade-table">
+      <thead>
+        <tr>
+          <th>UID</th>
+          <th>Symbol</th>
+          <th>Event</th>
+          <th>Event time (UTC)</th>
+          <th>Trade open · close (UTC)</th>
+          <th>Matched · delta</th>
+          <th style="text-align:right">Profit</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${trades.map(t => {
+          const eventDate = (t.eventTimeIso || '').slice(0,10);
+          const eventTime = (t.eventTimeIso || '').slice(11,19);
+          const openTime  = (t.openIso || '').slice(11,19) || (t.open || '').slice(-8);
+          const closeTime = (t.closeIso || '').slice(11,19) || (t.close || '').slice(-8);
+          const delta = typeof t.deltaSeconds === 'number' ? formatDeltaSeconds(t.deltaSeconds) : '';
+          const matchedOn = t.matchedOn === 'CLOSE' ? 'close' : 'open';
+          return `
+            <tr class="row-flag">
+              <td>${t.uid}</td>
+              <td class="sym">${t.symbol}</td>
+              <td>
+                <div style="color:var(--ink)">${escapeHtml(t.eventName || '')}</div>
+                <div style="font-size:10.5px;color:var(--faint)">
+                  <span class="pill signal" style="padding:1px 6px;font-size:9.5px">${escapeHtml(t.eventCurrency || '')} · RED</span>
+                  · ${escapeHtml(t.eventSource || '')}
+                </div>
+              </td>
+              <td>
+                <div>${eventDate}</div>
+                <div style="color:var(--ink);font-weight:500">${eventTime} UTC</div>
+              </td>
+              <td>
+                <div>open  ${openTime} UTC</div>
+                <div style="color:var(--muted)">close ${closeTime} UTC</div>
+              </td>
+              <td>
+                <div style="color:var(--ink)">${matchedOn} ${delta || ''}</div>
+                <div style="color:var(--faint);font-size:10.5px">window ±${ruleConfig['news_trading.window_seconds']}s</div>
+              </td>
+              <td class="num ${t.profit >= 0 ? 'plus':'minus'}">${fmtCents(t.profit,{sign:'always'})}</td>
+            </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
   `;
 }
 
@@ -1430,7 +1882,7 @@ function renderPdfModal(c) {
             <div class="pdf-meta-cell"><div class="pdf-meta-label">Trader</div><div class="pdf-meta-value">${escapeHtml(c.traderEmail)}</div></div>
             <div class="pdf-meta-cell"><div class="pdf-meta-label">Account</div><div class="pdf-meta-value">#${c.accountNumber}</div></div>
             <div class="pdf-meta-cell"><div class="pdf-meta-label">Account size</div><div class="pdf-meta-value">${fmtCents(c.accountSizeCents)}</div></div>
-            <div class="pdf-meta-cell"><div class="pdf-meta-label">Product</div><div class="pdf-meta-value">${c.product.replaceAll('_',' ')}</div></div>
+            <div class="pdf-meta-cell"><div class="pdf-meta-label">Account type</div><div class="pdf-meta-value">${(accountTypes[c.accountType]?.label) || c.accountType}</div></div>
             <div class="pdf-meta-cell"><div class="pdf-meta-label">Phase</div><div class="pdf-meta-value">${c.phase === 'FUNDED' ? 'Funded' : 'Phase 1'}</div></div>
             <div class="pdf-meta-cell"><div class="pdf-meta-label">Trades reviewed</div><div class="pdf-meta-value">${c.upload?.rowCount || 0}</div></div>
             <div class="pdf-meta-cell"><div class="pdf-meta-label">Range</div><div class="pdf-meta-value">${c.upload?.dateRangeStart || '—'} → ${c.upload?.dateRangeEnd || '—'}</div></div>
@@ -1449,14 +1901,50 @@ function renderPdfModal(c) {
           </div>
 
           <div class="pdf-section">Findings</div>
-          ${c.breaches.map(b => `
-            <div class="pdf-finding ${isDeductionKind(b) ? 's' : 'w'}">
+          ${c.breaches.map(b => {
+            const applied = b.applied && b.suggestedDeductionCents > 0;
+            const tagText = applied
+              ? 'Deduction · ' + fmtCents(b.suggestedDeductionCents)
+              : (isDeductionKind(b) ? 'Deduction · waived' : 'Manual review · no deduction');
+            const sideClass = applied ? 's' : 'w';
+            const isNews = b.ruleKey === 'NEWS_TRADING';
+            return `
+            <div class="pdf-finding ${sideClass}">
               <div class="pdf-finding-h">
                 <div class="name">${ruleLabel(b.ruleKey)}</div>
-                <div class="tag">${isDeductionKind(b) ? 'Deduction · ' + fmtCents(b.suggestedDeductionCents) : 'Manual review'}</div>
+                <div class="tag">${tagText}</div>
               </div>
               <div class="pdf-finding-body">${escapeHtml((ruleText[b.ruleKey] || '').replace(/\*\*/g,'').split('\n\n').slice(0,2).join(' '))}</div>
-              ${(b.trades || []).length > 0 ? `
+              ${(b.trades || []).length > 0 ? (isNews ? `
+                <table class="pdf-table">
+                  <thead><tr>
+                    <th>UID</th><th>Symbol</th><th>Event · Currency</th>
+                    <th>Event time UTC</th><th>Trade open · close UTC</th>
+                    <th>Matched · delta</th>
+                    <th style="text-align:right">Profit</th>
+                  </tr></thead>
+                  <tbody>
+                    ${b.trades.slice(0,8).map(t => {
+                      const evDate = (t.eventTimeIso||'').slice(0,10);
+                      const evTime = (t.eventTimeIso||'').slice(11,19);
+                      const oTime = (t.openIso||'').slice(11,19);
+                      const cTime = (t.closeIso||'').slice(11,19);
+                      const delta = typeof t.deltaSeconds === 'number' ? formatDeltaSeconds(t.deltaSeconds) : '';
+                      const matchOn = t.matchedOn === 'CLOSE' ? 'close' : 'open';
+                      return `<tr>
+                        <td>${t.uid}</td>
+                        <td>${t.symbol}</td>
+                        <td>${escapeHtml(t.eventName||'')} · ${escapeHtml(t.eventCurrency||'')}</td>
+                        <td>${evDate} ${evTime}</td>
+                        <td>${oTime} → ${cTime}</td>
+                        <td>${matchOn} · ${delta}</td>
+                        <td style="text-align:right;color:${t.profit >= 0 ? '#2f8a5e':'#c43c2e'}">${fmtCents(t.profit,{sign:'always'})}</td>
+                      </tr>`;
+                    }).join('')}
+                    ${b.trades.length > 8 ? `<tr><td colspan="7" style="color:#959aa2">+ ${b.trades.length - 8} more trades…</td></tr>`:''}
+                  </tbody>
+                </table>
+              ` : `
                 <table class="pdf-table">
                   <thead><tr><th>UID</th><th>Symbol</th><th>Open · Close (UTC)</th><th>Duration</th><th style="text-align:right">Profit</th></tr></thead>
                   <tbody>
@@ -1469,9 +1957,10 @@ function renderPdfModal(c) {
                       </tr>`).join('')}
                     ${b.trades.length > 8 ? `<tr><td colspan="5" style="color:#959aa2">+ ${b.trades.length - 8} more trades…</td></tr>`:''}
                   </tbody>
-                </table>` : ''}
-            </div>
-          `).join('')}
+                </table>
+              `) : ''}
+            </div>`;
+          }).join('')}
 
           <div class="pdf-section">Manual cross-account checks performed</div>
           <div class="pdf-checklist">
@@ -1529,6 +2018,25 @@ function toggleBreach(caseId, breachId, applied) {
   c.totalDeductionCents = c.breaches.reduce((s,x) => s + (x.applied ? x.suggestedDeductionCents : 0), 0);
   c.payableAmountCents = c.reportedPnlCents - c.totalDeductionCents;
   audit('BREACH_TOGGLED', { breachId, ruleKey: b.ruleKey, applied, newTotalDeductionCents: c.totalDeductionCents }, c.id);
+  render();
+}
+
+function setBreachDeduction(caseId, breachId, dollarsRaw) {
+  const c = caseById(caseId); if (!c) return;
+  const b = c.breaches.find(x => x.id === breachId); if (!b) return;
+  const dollars = Number(dollarsRaw);
+  if (!Number.isFinite(dollars) || dollars < 0) return;
+  const cents = Math.round(dollars * 100);
+  const before = b.suggestedDeductionCents;
+  b.suggestedDeductionCents = cents;
+  // Auto-apply if reviewer set a non-zero amount on a previously-unapplied flag.
+  if (cents > 0 && !b.applied) b.applied = true;
+  c.totalDeductionCents = c.breaches.reduce((s,x) => s + (x.applied ? x.suggestedDeductionCents : 0), 0);
+  c.payableAmountCents = c.reportedPnlCents - c.totalDeductionCents;
+  audit('BREACH_DEDUCTION_SET', {
+    breachId, ruleKey: b.ruleKey, beforeCents: before, afterCents: cents,
+    newTotalDeductionCents: c.totalDeductionCents,
+  }, c.id);
   render();
 }
 
@@ -1616,7 +2124,6 @@ function render() {
       accountNumber: f.get('accountNumber'),
       accountSizeCents: Math.round(Number(f.get('accountSize')) * 100),
       phase: f.get('phase'),
-      product: f.get('product'),
       accountType: f.get('accountType'),
       reportedPnlCents: Math.round(Number(f.get('reportedPnl')) * 100),
       parsedPnlCents: 0, totalDeductionCents: 0, payableAmountCents: null,
@@ -1628,28 +2135,40 @@ function render() {
     go('#/cases/' + c.id);
   });
 
-  document.getElementById('csvInput')?.addEventListener('change', e => {
+  document.getElementById('csvInput')?.addEventListener('change', async e => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Demo: pretend we parsed and analysed; copy breach data from the alex.morgan demo case
     const c = caseById(route.split('/')[2]);
     if (!c) return;
-    const template = cases.find(x => x.id === 'c1');
-    c.upload = { ...template.upload, filename: file.name };
-    c.breaches = JSON.parse(JSON.stringify(template.breaches));
-    c.dailyPnl = template.dailyPnl;
-    c.perSymbolPnl = template.perSymbolPnl;
-    c.durationHist = template.durationHist;
-    c.parsedPnlCents = template.parsedPnlCents;
-    c.totalDeductionCents = c.breaches.reduce((s,b) => s + (b.applied ? b.suggestedDeductionCents : 0), 0);
-    c.payableAmountCents = c.reportedPnlCents - c.totalDeductionCents;
-    c.status = 'IN_REVIEW';
-    audit('UPLOAD_REPLACED_AND_ANALYZED', {
-      uploadId: 'u' + Date.now(), sha256: c.upload.sha256,
-      rowCount: c.upload.rowCount, findingCount: c.breaches.length,
-      deductionCents: c.totalDeductionCents,
-    }, c.id);
-    render();
+    try {
+      const result = await runRealEngineOnFile(file, c);
+
+      // CSV is the source of truth for account info — override the case form.
+      if (result.account.accountSizeCents) c.accountSizeCents = result.account.accountSizeCents;
+      if (result.account.accountType)      c.accountType      = result.account.accountType;
+      if (result.account.traderEmail)      c.traderEmail      = result.account.traderEmail;
+
+      c.upload = result.upload;
+      c.parsedPnlCents = result.parsedPnlCents;
+      c.breaches = result.findings;
+      c.dailyPnl = result.aggs.dailyPnl;
+      c.perSymbolPnl = result.aggs.perSymbolPnl;
+      c.durationHist = result.aggs.durationHist;
+      c.totalDeductionCents = c.breaches.reduce((s,b) => s + (b.applied ? b.suggestedDeductionCents : 0), 0);
+      c.payableAmountCents  = c.reportedPnlCents - c.totalDeductionCents;
+      c.status = 'IN_REVIEW';
+      c.reviewer = c.reviewer || session.name;
+
+      audit('UPLOAD_REPLACED_AND_ANALYZED', {
+        sha256: c.upload.sha256, rowCount: c.upload.rowCount,
+        findingCount: c.breaches.length,
+        deductionCents: c.totalDeductionCents,
+        accountType: c.accountType,
+      }, c.id);
+      render();
+    } catch (err) {
+      alert('Could not parse / analyse this CSV:\n\n' + err.message);
+    }
   });
 
   document.getElementById('accountTypesForm')?.addEventListener('submit', e => {
