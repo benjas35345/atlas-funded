@@ -344,7 +344,7 @@ let accountTypes = {
 
 let ruleText = {
   SUB_3_MIN: `**Sub-3-minute trades are not eligible for payout.**\n\nAtlas Funded considers any trade held for less than three minutes to be out of scope of the funded account program. Profit realised on such a trade is excluded from the payable amount. Losing trades held under three minutes are not penalised.`,
-  CONCENTRATED_DAILY_LOSS: `**Concentrated single-asset daily loss exceeded the limit.**\n\nFor Atlas Funded accounts, the realised loss on any single instrument in a single UTC trading day must not exceed 50% of the account type's daily drawdown limit. Where this threshold is exceeded, the case is referred for manual review.`,
+  CONCENTRATED_DAILY_LOSS: `**Risk exposure breach.**\n\nFor Atlas Funded accounts, the realised loss on any single instrument in a single UTC trading day must not exceed 50% of the account type's daily drawdown limit. Where this threshold is exceeded, the case is referred for manual review and Atlas Funded reserves the right to apply a deduction.`,
   TICK_SCALPING_CLUSTER: `**Tick-scalping / spam-trading pattern detected.**\n\nA cluster of three or more trades opened within a ten-second window suggests automated or bot-assisted execution.`,
   EXCESSIVE_MARGIN_USAGE: `**Excessive margin usage.**\n\nAtlas Funded prohibits gambling-style position sizing. Where a single trade uses more than 80% of available margin relative to the account's initial balance, the trade is treated as out of scope of the funded account program and any profit realised on it is excluded from the payable amount.`,
   NEWS_TRADING: `**Trading around high-impact news.**\n\nAtlas Funded accounts may not be traded within three minutes either side of a HIGH-impact ("red folder") economic release affecting the traded instrument. The economic calendar is sourced from ForexFactory, Investing.com, and MyFxBook; only RED / HIGH-impact releases are in scope (yellow, orange, green and unrated releases are not).`,
@@ -953,12 +953,36 @@ function isDeductionKind(b) { return b.kind === 'deduction' || b.kind === 'auto'
 function ruleLabel(key) {
   return ({
     SUB_3_MIN: 'Sub-3-minute trades',
-    CONCENTRATED_DAILY_LOSS: 'Concentrated daily loss',
+    CONCENTRATED_DAILY_LOSS: 'Risk exposure breach',
     TICK_SCALPING_CLUSTER: 'Tick-scalping cluster',
     EXCESSIVE_MARGIN_USAGE: 'Excessive margin usage',
     REPEATED_EXCESSIVE_MARGIN: 'Excessive margin usage', // legacy alias
     NEWS_TRADING: 'Trading around high-impact news',
   })[key] || key;
+}
+
+/**
+ * For rules where the same key produces multiple distinct instances
+ * (risk-exposure breach per (symbol, day), tick-scalping clusters per
+ * window, news-trading flags per event), append an instance discriminator
+ * to the label so two flags don't visually collide.
+ */
+function ruleInstanceLabel(b) {
+  const base = ruleLabel(b.ruleKey);
+  const m = b.meta || {};
+  if (b.ruleKey === 'CONCENTRATED_DAILY_LOSS' && m.symbol && m.date) {
+    const d = new Date(m.date + 'T00:00:00Z');
+    const day = String(d.getUTCDate()).padStart(2,'0');
+    const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()];
+    return `${base} · ${m.symbol} · ${day} ${mon}`;
+  }
+  if (b.ruleKey === 'TICK_SCALPING_CLUSTER' && m.windowStart) {
+    return `${base} · ${m.windowStart} UTC`;
+  }
+  if (b.ruleKey === 'NEWS_TRADING' && m.event) {
+    return `${base} · ${m.event}`;
+  }
+  return base;
 }
 
 /* ─── chrome (sidebar nav + shell) ──────────────────────────────────────── */
@@ -1171,7 +1195,7 @@ function renderAnalysisView(c) {
         ${c.breaches.map(b => `
           <div class="bcard ${isDeductionKind(b) ? 'signal' : 'warn'}">
             <div class="lbl ${isDeductionKind(b) ? 's' : 'w'}">● ${isDeductionKind(b) ? 'Deduction' : 'Manual review'}</div>
-            <div class="name">${ruleLabel(b.ruleKey)}</div>
+            <div class="name">${ruleInstanceLabel(b)}</div>
             <div class="stat ${isDeductionKind(b) ? 'minus' : ''}">
               ${isDeductionKind(b) ? '−' + fmtCents(b.suggestedDeductionCents) : (b.trades?.length || 0) + ' trades'}
             </div>
@@ -1270,7 +1294,7 @@ function renderFinding(c, b) {
       <summary>
         <div class="l">
           <span class="ic-dot ${kind}"></span>
-          <span class="finding-name">${ruleLabel(b.ruleKey)}</span>
+          <span class="finding-name">${ruleInstanceLabel(b)}</span>
           <span class="finding-tag ${kind}">${isDeductionKind(b) ? 'Deduction' : 'Manual review'}</span>
         </div>
         <div class="r" onclick="event.stopPropagation()" style="gap:10px">
@@ -1900,77 +1924,141 @@ function renderPdfModal(c) {
             </div>
           </div>
 
-          <div class="pdf-section">Findings</div>
-          ${c.breaches.map(b => {
-            const applied = b.applied && b.suggestedDeductionCents > 0;
-            const tagText = applied
-              ? 'Deduction · ' + fmtCents(b.suggestedDeductionCents)
-              : (isDeductionKind(b) ? 'Deduction · waived' : 'Manual review · no deduction');
-            const sideClass = applied ? 's' : 'w';
-            const isNews = b.ruleKey === 'NEWS_TRADING';
-            return `
-            <div class="pdf-finding ${sideClass}">
-              <div class="pdf-finding-h">
-                <div class="name">${ruleLabel(b.ruleKey)}</div>
-                <div class="tag">${tagText}</div>
-              </div>
-              <div class="pdf-finding-body">${escapeHtml((ruleText[b.ruleKey] || '').replace(/\*\*/g,'').split('\n\n').slice(0,2).join(' '))}</div>
-              ${(b.trades || []).length > 0 ? (isNews ? `
-                <table class="pdf-table">
-                  <thead><tr>
-                    <th>UID</th><th>Symbol</th><th>Event · Currency</th>
-                    <th>Event time UTC</th><th>Trade open · close UTC</th>
-                    <th>Matched · delta</th>
-                    <th style="text-align:right">Profit</th>
-                  </tr></thead>
-                  <tbody>
-                    ${b.trades.slice(0,8).map(t => {
-                      const evDate = (t.eventTimeIso||'').slice(0,10);
-                      const evTime = (t.eventTimeIso||'').slice(11,19);
-                      const oTime = (t.openIso||'').slice(11,19);
-                      const cTime = (t.closeIso||'').slice(11,19);
-                      const delta = typeof t.deltaSeconds === 'number' ? formatDeltaSeconds(t.deltaSeconds) : '';
-                      const matchOn = t.matchedOn === 'CLOSE' ? 'close' : 'open';
-                      return `<tr>
-                        <td>${t.uid}</td>
-                        <td>${t.symbol}</td>
-                        <td>${escapeHtml(t.eventName||'')} · ${escapeHtml(t.eventCurrency||'')}</td>
-                        <td>${evDate} ${evTime}</td>
-                        <td>${oTime} → ${cTime}</td>
-                        <td>${matchOn} · ${delta}</td>
-                        <td style="text-align:right;color:${t.profit >= 0 ? '#2f8a5e':'#c43c2e'}">${fmtCents(t.profit,{sign:'always'})}</td>
-                      </tr>`;
-                    }).join('')}
-                    ${b.trades.length > 8 ? `<tr><td colspan="7" style="color:#959aa2">+ ${b.trades.length - 8} more trades…</td></tr>`:''}
-                  </tbody>
-                </table>
-              ` : `
-                <table class="pdf-table">
-                  <thead><tr><th>UID</th><th>Symbol</th><th>Open · Close (UTC)</th><th>Duration</th><th style="text-align:right">Profit</th></tr></thead>
-                  <tbody>
-                    ${b.trades.slice(0,8).map(t => `
-                      <tr>
-                        <td>${t.uid}</td><td>${t.symbol}</td>
-                        <td>${escapeHtml(t.open)} → ${escapeHtml(t.close)}</td>
-                        <td>${t.dur}</td>
-                        <td style="text-align:right;color:${t.profit >= 0 ? '#2f8a5e':'#c43c2e'}">${fmtCents(t.profit,{sign:'always'})}</td>
-                      </tr>`).join('')}
-                    ${b.trades.length > 8 ? `<tr><td colspan="5" style="color:#959aa2">+ ${b.trades.length - 8} more trades…</td></tr>`:''}
-                  </tbody>
-                </table>
-              `) : ''}
-            </div>`;
-          }).join('')}
+          ${(() => {
+            // Trader-facing PDF only includes findings where a deduction was
+            // actually applied. Waived flags / zero-deduction manual reviews
+            // are internal and shouldn't appear on the trader's report.
+            const appliedFindings = c.breaches.filter(b => b.applied && b.suggestedDeductionCents > 0);
+            const at = accountTypes[c.accountType] || { dailyDd: 0, maxDd: 0, label: c.accountType };
+            const perAssetMul = ruleConfig['concentrated_daily_loss.per_asset_limit_multiplier'];
+            const perAssetCents = Math.round(c.accountSizeCents * at.dailyDd * perAssetMul);
+            const dailyDdCents = Math.round(c.accountSizeCents * at.dailyDd);
+            const maxDdCents   = Math.round(c.accountSizeCents * at.maxDd);
 
-          <div class="pdf-section">Manual cross-account checks performed</div>
-          <div class="pdf-checklist">
-            ${[
-              'No hedging across accounts confirmed (broker backend cross-check).',
-              'No copy-trading or signal-mirror pattern with other Atlas accounts.',
-              'Account not flagged in shared-IP / shared-device cluster.',
-              'Not on internal "passing service" watchlist.',
-            ].map(t => `<div class="pdf-check"><div class="pdf-cb"></div><div>${t}</div></div>`).join('')}
-          </div>
+            if (appliedFindings.length === 0) {
+              return `
+                <div class="pdf-section">Outcome</div>
+                <div style="font-size:11px;color:#0a0d14;line-height:1.6">
+                  No deductions have been applied to this payout. Your payable amount of
+                  <b>${fmtCents(c.payableAmountCents ?? c.reportedPnlCents)}</b>
+                  reflects the full reported P&amp;L.
+                </div>`;
+            }
+
+            return `
+              <div class="pdf-section">Account &amp; limits</div>
+              <table class="pdf-table" style="margin-bottom:12px">
+                <tbody>
+                  <tr>
+                    <td style="color:#959aa2">Account number</td><td>${escapeHtml(c.accountNumber)}</td>
+                    <td style="color:#959aa2">Account type</td><td>${escapeHtml(at.label)}</td>
+                  </tr>
+                  <tr>
+                    <td style="color:#959aa2">Initial balance</td><td>${fmtCents(c.accountSizeCents)}</td>
+                    <td style="color:#959aa2">Phase</td><td>${c.phase === 'FUNDED' ? 'Funded' : 'Phase 1'}</td>
+                  </tr>
+                  <tr>
+                    <td style="color:#959aa2">Daily drawdown limit</td><td>${(at.dailyDd*100).toFixed(0)}% · ${fmtCents(dailyDdCents)}</td>
+                    <td style="color:#959aa2">Max drawdown limit</td><td>${(at.maxDd*100).toFixed(0)}% · ${fmtCents(maxDdCents)}</td>
+                  </tr>
+                  <tr>
+                    <td style="color:#959aa2">Per-asset day limit</td><td>${(at.dailyDd*perAssetMul*100).toFixed(2)}% · ${fmtCents(perAssetCents)}</td>
+                    <td style="color:#959aa2">Trades reviewed</td><td>${c.upload?.rowCount ?? 0}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="pdf-section">Breaches &amp; deductions</div>
+              ${appliedFindings.map(b => {
+                const isNews = b.ruleKey === 'NEWS_TRADING';
+                const isCDL  = b.ruleKey === 'CONCENTRATED_DAILY_LOSS';
+                const sideClass = 's';
+                const tagText = 'Deduction · ' + fmtCents(b.suggestedDeductionCents);
+                const fullWording = (ruleText[b.ruleKey] || '').replace(/\*\*/g, '');
+                // Per-breach data row (CDL: symbol/date/netLoss/threshold)
+                let dataRow = '';
+                if (isCDL && b.meta) {
+                  dataRow = `
+                    <table class="pdf-table" style="margin-bottom:8px">
+                      <tbody>
+                        <tr>
+                          <td style="color:#959aa2">Symbol</td><td>${escapeHtml(b.meta.symbol)}</td>
+                          <td style="color:#959aa2">UTC day</td><td>${b.meta.date}</td>
+                        </tr>
+                        <tr>
+                          <td style="color:#959aa2">Net loss on instrument</td>
+                          <td style="color:#c43c2e">−${fmtCents(b.meta.netLoss)}</td>
+                          <td style="color:#959aa2">Limit</td><td>${fmtCents(b.meta.threshold)}</td>
+                        </tr>
+                        <tr>
+                          <td style="color:#959aa2">Over-by</td>
+                          <td style="color:#c43c2e">${fmtCents(b.meta.overBy)}</td>
+                          <td colspan="2"></td>
+                        </tr>
+                      </tbody>
+                    </table>`;
+                }
+                return `
+                  <div class="pdf-finding ${sideClass}">
+                    <div class="pdf-finding-h">
+                      <div class="name">${ruleInstanceLabel(b)}</div>
+                      <div class="tag">${tagText}</div>
+                    </div>
+                    <div class="pdf-finding-body" style="white-space:pre-wrap">${escapeHtml(fullWording)}</div>
+                    ${dataRow}
+                    ${(b.trades || []).length > 0 ? (isNews ? `
+                      <table class="pdf-table">
+                        <thead><tr>
+                          <th>Trade ID</th><th>Symbol</th><th>Event · Currency</th>
+                          <th>Event time UTC</th><th>Trade open · close UTC</th>
+                          <th>Matched · delta</th>
+                          <th style="text-align:right">Profit</th>
+                        </tr></thead>
+                        <tbody>
+                          ${b.trades.map(t => {
+                            const evDate = (t.eventTimeIso||'').slice(0,10);
+                            const evTime = (t.eventTimeIso||'').slice(11,19);
+                            const oTime = (t.openIso||'').slice(11,19);
+                            const cTime = (t.closeIso||'').slice(11,19);
+                            const delta = typeof t.deltaSeconds === 'number' ? formatDeltaSeconds(t.deltaSeconds) : '';
+                            const matchOn = t.matchedOn === 'CLOSE' ? 'close' : 'open';
+                            return `<tr>
+                              <td>${t.uid}</td>
+                              <td>${t.symbol}</td>
+                              <td>${escapeHtml(t.eventName||'')} · ${escapeHtml(t.eventCurrency||'')}</td>
+                              <td>${evDate} ${evTime}</td>
+                              <td>${oTime} → ${cTime}</td>
+                              <td>${matchOn} · ${delta}</td>
+                              <td style="text-align:right;color:${t.profit >= 0 ? '#2f8a5e':'#c43c2e'}">${fmtCents(t.profit,{sign:'always'})}</td>
+                            </tr>`;
+                          }).join('')}
+                        </tbody>
+                      </table>
+                    ` : `
+                      <table class="pdf-table">
+                        <thead><tr>
+                          <th>Trade ID</th><th>Symbol</th>
+                          <th>Open (UTC)</th><th>Close (UTC)</th>
+                          <th>Duration</th>
+                          <th style="text-align:right">Profit</th>
+                        </tr></thead>
+                        <tbody>
+                          ${b.trades.map(t => `
+                            <tr>
+                              <td>${t.uid}</td>
+                              <td>${t.symbol}</td>
+                              <td>${escapeHtml(t.openIso ? t.openIso.replace('T',' ').slice(0,19) : t.open)}</td>
+                              <td>${escapeHtml(t.closeIso ? t.closeIso.replace('T',' ').slice(0,19) : t.close)}</td>
+                              <td>${t.dur || ''}</td>
+                              <td style="text-align:right;color:${t.profit >= 0 ? '#2f8a5e':'#c43c2e'}">${fmtCents(t.profit,{sign:'always'})}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                      </table>
+                    `) : ''}
+                  </div>`;
+              }).join('')}
+            `;
+          })()}
 
           <div class="pdf-appeals">
             <h3>If you disagree with this outcome</h3>
