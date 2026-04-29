@@ -1660,7 +1660,7 @@ function adminTabs(active) {
 function renderAdminRules() {
   const KEYS = [
     ['sub_3_min.threshold_seconds','Sub-3-min cutoff (seconds)','Trades with duration ≤ this and profit > 0 are deducted in full.'],
-    ['concentrated_daily_loss.per_asset_limit_multiplier','Concentrated daily loss · per-asset multiplier (× daily DD)','e.g. 0.5 = the per-asset day limit is 50% of the account type\'s daily DD. Edit per-account-type DD on the Account Types tab.'],
+    ['concentrated_daily_loss.per_asset_limit_multiplier','Risk exposure breach · per-asset multiplier (× daily DD)','e.g. 0.5 = the per-asset day limit is 50% of the account type\'s daily DD. Edit per-account-type DD on the Account Types tab.'],
     ['tick_scalping.cluster_size','Tick-scalping cluster size','Minimum trades within the window to constitute a cluster.'],
     ['tick_scalping.window_seconds','Tick-scalping window (seconds)','Time window over which open-times are counted.'],
     ['excessive_margin.max_margin_fraction','Excessive margin · max margin fraction','e.g. 0.80 = a single trade using more than 80% of available margin auto-deducts profit.'],
@@ -1704,7 +1704,7 @@ function renderAdminAccountTypes() {
         <div style="padding:18px 24px 0">
           <h2 style="font-size:18px;font-weight:600;margin:0 0 4px">Account-type drawdown limits</h2>
           <p style="color:var(--faint);font-size:12px;margin:0 0 18px">
-            Daily and max DD per Atlas account type. The Concentrated Daily Loss rule
+            Daily and max DD per Atlas account type. The Risk Exposure Breach rule
             derives its per-asset, per-day net loss limit from the daily DD, multiplied by
             the per-asset multiplier on the Rules tab (currently <span class="mono">${mult}</span>).
           </p>
@@ -1753,7 +1753,7 @@ function renderAdminAccountTypes() {
 function renderAdminWording() {
   const RULES = [
     ['SUB_3_MIN','Sub-3-Minute Trades'],
-    ['CONCENTRATED_DAILY_LOSS','Concentrated Daily Loss'],
+    ['CONCENTRATED_DAILY_LOSS','Risk Exposure Breach'],
     ['TICK_SCALPING_CLUSTER','Tick-Scalping Cluster'],
     ['EXCESSIVE_MARGIN_USAGE','Excessive Margin Usage'],
     ['NEWS_TRADING','News Trading (high-impact)'],
