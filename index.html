@@ -641,9 +641,10 @@ function runExcessiveMargin(trades, ctx, maxFraction){
 /* Rule 5 — News trading — flag-only, ±windowSec around HIGH-impact events. */
 function runNewsTradingRule(trades, events, windowSec){
   // Atlas rule: ALL HIGH-impact (red-folder) news events flag any trade whose OPEN or CLOSE
-  // falls within ±windowSec, regardless of currency-affects mapping. The currency-affects
-  // table is no longer used for matching — it's metadata only.
-  const byEvent=new Map();
+  // falls within ±windowSec. Multiple HIGH events at the SAME UTC timestamp affecting the
+  // SAME trades (e.g. RBNZ Official Cash Rate + Rate Statement, both 02:00 UTC) are merged
+  // into a single finding so reviewers see one card per release window, not one per headline.
+  const matches=[]; // {event, trade, matchedOn, delta}
   for(const ev of events){
     if(ev.impact!=='HIGH') continue;
     const evMs=Date.parse(ev.timeUtc);
@@ -652,24 +653,43 @@ function runNewsTradingRule(trades, events, windowSec){
       const matchedOn=Math.abs(dOpen)<=windowSec*1000?'OPEN'
                      :Math.abs(dClose)<=windowSec*1000?'CLOSE':null;
       if(!matchedOn) continue;
-      const delta=matchedOn==='OPEN'?dOpen:dClose;
-      if(!byEvent.has(ev.id)) byEvent.set(ev.id,{event:ev,rows:[]});
-      byEvent.get(ev.id).rows.push({uid:t.uid,symbol:t.symbol,
-        open:isoUtcShort(t.openTimeMs),close:isoUtcShort(t.closeTimeMs),
-        openIso:new Date(t.openTimeMs).toISOString(),closeIso:new Date(t.closeTimeMs).toISOString(),
-        eventName:ev.name,eventCurrency:ev.currency,eventTimeIso:ev.timeUtc,eventSource:ev.source,
-        matchedOn,deltaSeconds:Math.round(delta/1000),
-        dur:durString(t.durationSeconds),profit:t.profitCents});
+      matches.push({event:ev, trade:t, matchedOn, delta:matchedOn==='OPEN'?dOpen:dClose});
     }
   }
-  return [...byEvent.values()]
-    .sort((a,b)=>Date.parse(a.event.timeUtc)-Date.parse(b.event.timeUtc))
-    .map(({event,rows})=>({
-      id:`b-news-${event.id}`, ruleKey:'NEWS_TRADING', kind:'flag', applied:true,
-      suggestedDeductionCents:0,
-      meta:{eventCount:1, windowSec, event:`${event.name} · ${event.currency}`},
-      trades:rows.sort((a,b)=>a.openIso.localeCompare(b.openIso)),
-    }));
+  if(matches.length===0) return [];
+  // Group by event timestamp — every match at the same UTC moment becomes one finding.
+  const byTime=new Map();
+  for(const m of matches){
+    const k=m.event.timeUtc;
+    if(!byTime.has(k)) byTime.set(k,{timeUtc:k, events:[], byTradeUid:new Map()});
+    const bucket=byTime.get(k);
+    if(!bucket.events.find(e=>e.id===m.event.id)) bucket.events.push(m.event);
+    if(!bucket.byTradeUid.has(m.trade.uid)){
+      bucket.byTradeUid.set(m.trade.uid,{uid:m.trade.uid, symbol:m.trade.symbol,
+        open:isoUtcShort(m.trade.openTimeMs), close:isoUtcShort(m.trade.closeTimeMs),
+        openIso:new Date(m.trade.openTimeMs).toISOString(),
+        closeIso:new Date(m.trade.closeTimeMs).toISOString(),
+        matchedOn:m.matchedOn, deltaSeconds:Math.round(m.delta/1000),
+        dur:durString(m.trade.durationSeconds), profit:m.trade.profitCents,
+        eventNames:[], eventCurrency:m.event.currency,
+        eventTimeIso:m.event.timeUtc, eventSource:m.event.source});
+    }
+    const row=bucket.byTradeUid.get(m.trade.uid);
+    if(!row.eventNames.includes(m.event.name)) row.eventNames.push(m.event.name);
+  }
+  return [...byTime.values()]
+    .sort((a,b)=>Date.parse(a.timeUtc)-Date.parse(b.timeUtc))
+    .map(({timeUtc, events:evs, byTradeUid})=>{
+      const eventLabel=evs.map(e=>e.name).join(' · ');
+      const currencies=[...new Set(evs.map(e=>e.currency))].join('/');
+      const rows=[...byTradeUid.values()].map(r=>({...r, eventName:r.eventNames.join(' · ')}));
+      return {
+        id:`b-news-${timeUtc}`, ruleKey:'NEWS_TRADING', kind:'flag', applied:true,
+        suggestedDeductionCents:0,
+        meta:{eventCount:evs.length, windowSec, event:`${eventLabel} · ${currencies}`},
+        trades:rows.sort((a,b)=>a.openIso.localeCompare(b.openIso)),
+      };
+    });
 }
 
 function buildAggregatesFromTrades(trades){
@@ -864,7 +884,7 @@ function renderCases(){
                 <td><div>${at?.label||c.accountType}</div><div class="mono" style="font-size:10.5px;color:var(--faint)">${dd}</div></td>
                 <td>${c.phase==='FUNDED'?'Funded':'Phase 1'}</td>
                 <td class="num mono">${fmtCents(c.reportedPnlCents)}</td>
-                <td class="num mono" style="color:var(--ok)">${c.payableAmountCents!=null?fmtCents(c.payableAmountCents):'—'}</td>
+                <td class="num mono" style="color:var(--ok)">${c.payableAmountCents!=null?fmtCents(Math.max(0,c.payableAmountCents)):'—'}${c.payableAmountCents!=null&&c.payableAmountCents<0?` <span style="color:var(--signal);font-size:10.5px">(deficit ${fmtCents(c.payableAmountCents,{sign:'always'})})</span>`:''}</td>
                 <td>${statusPill(c.status)}</td>
               </tr>`;
             }).join('')}
@@ -974,7 +994,8 @@ function caseHeader(c, livePayable, liveDeduction){
         <span><b>Reported P&amp;L</b> ${fmtCents(c.reportedPnlCents)}</span>
         <span><b>Parsed</b> ${fmtCents(c.parsedPnlCents||0)}</span>
         <span><b>Deductions</b> <span style="color:var(--signal)" class="mono">−${fmtCents(liveDeduction??c.totalDeductionCents)}</span></span>
-        <span><b>Suggested payable</b> <span style="color:var(--ok)" class="mono">${fmtCents(livePayable??c.payableAmountCents)}</span></span>
+        <span><b>Suggested payable</b> <span style="color:var(--ok)" class="mono">${fmtCents(Math.max(0, livePayable??c.payableAmountCents??0))}</span></span>
+        ${(livePayable??c.payableAmountCents??0)<0?`<span><b>Account deficit</b> <span style="color:var(--signal)" class="mono">${fmtCents(livePayable??c.payableAmountCents??0,{sign:'always'})}</span></span>`:''}
         <span><b>Reviewed by</b> ${escapeHtml(c.reviewer||session.name)}</span>
         ${isLocked&&c.decidedBy?`<span><b>Decided by</b> ${escapeHtml(c.decidedBy)}</span>`:''}
       </div>
@@ -1023,7 +1044,8 @@ function renderAnalysisView(c){
         <div class="total">
           <span>Reported <b>${fmtCents(c.reportedPnlCents)}</b></span>
           <span>Auto −<b style="color:var(--signal)">${fmtCents(liveDeductionCents)}</b></span>
-          <span>Payable <b style="color:var(--ok)">${fmtCents(livePayableCents)}</b></span>
+          <span>Payable <b style="color:var(--ok)">${fmtCents(Math.max(0, livePayableCents))}</b></span>
+          ${livePayableCents<0?`<span>Account deficit <b style="color:var(--signal)">${fmtCents(livePayableCents,{sign:'always'})}</b></span>`:''}
         </div>
         <div style="display:flex;gap:8px">
           ${isLocked?`
@@ -1499,7 +1521,7 @@ function renderPdfModal(c){
             <div class="pdf-section">Outcome</div>
             <div style="font-size:11px;color:#0a0d14;line-height:1.6">
               No deductions have been applied to this payout. Your payable amount of
-              <b>${fmtCents(c.payableAmountCents??c.reportedPnlCents)}</b>
+              <b>${fmtCents(Math.max(0,c.payableAmountCents??c.reportedPnlCents))}</b>
               reflects the full reported P&amp;L.
             </div>
           `:`
@@ -1520,7 +1542,7 @@ function renderPdfModal(c){
             <div class="pdf-figs">
               <div class="pdf-fig"><div class="pdf-fig-l">Reported P&amp;L</div><div class="pdf-fig-v">${fmtCents(c.reportedPnlCents)}</div></div>
               <div class="pdf-fig"><div class="pdf-fig-l">Total deductions</div><div class="pdf-fig-v signal">−${fmtCents(liveDed)}</div></div>
-              <div class="pdf-fig"><div class="pdf-fig-l">Payable amount</div><div class="pdf-fig-v ok">${fmtCents(livePay)}</div></div>
+              <div class="pdf-fig"><div class="pdf-fig-l">Payable amount</div><div class="pdf-fig-v ok">${fmtCents(Math.max(0,livePay))}</div>${livePay<0?`<div style="font-size:10px;color:#c44;margin-top:4px">Account deficit ${fmtCents(livePay,{sign:'always'})} — deductions exceed reported P&amp;L; nothing payable.</div>`:''}</div>
             </div>
 
             <div class="pdf-section">Breaches &amp; deductions</div>
