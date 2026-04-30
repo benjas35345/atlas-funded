@@ -791,16 +791,25 @@ function renderShell(content){
 function renderCases(){
   const params=new URLSearchParams(route.split('?')[1]||'');
   const status=params.get('status');
-  let list=cases;
+  // Default tab = Funded. Phase tab is sticky via ?phase=evaluation.
+  const phaseTab=params.get('phase')==='evaluation' ? 'PHASE_1' : 'FUNDED';
+  const fundedCount=cases.filter(c=>c.phase==='FUNDED').length;
+  const phase1Count=cases.filter(c=>c.phase==='PHASE_1').length;
+  let list=cases.filter(c=>c.phase===phaseTab);
   if(status==='in-review') list=list.filter(c=>c.status==='IN_REVIEW');
   if(status==='decided') list=list.filter(c=>c.status==='DECIDED');
+  const tabs=`<div class="tabs" style="margin-bottom:14px">
+    <a href="#/cases" class="${phaseTab==='FUNDED'?'active':''}">Funded · <span class="mono" style="color:var(--faint);font-size:11px">${fundedCount}</span></a>
+    <a href="#/cases?phase=evaluation" class="${phaseTab==='PHASE_1'?'active':''}">Evaluation · Phase 1 · <span class="mono" style="color:var(--faint);font-size:11px">${phase1Count}</span></a>
+  </div>`;
   return renderShell(`
     <div class="fade-in">
       <div class="crumbs"><div>Workspace</div></div>
-      <div style="display:flex;justify-content:space-between;align-items:end;margin-bottom:18px">
+      <div style="display:flex;justify-content:space-between;align-items:end;margin-bottom:14px">
         <div><div class="eyebrow">Workspace</div><h1 style="font-size:24px;font-weight:600;margin:0;letter-spacing:-.01em">Cases</h1></div>
         <a href="#/cases/new" class="btn primary">+ New review</a>
       </div>
+      ${tabs}
       <div class="card" style="padding:0;overflow:hidden">
         <table>
           <thead><tr><th>Review</th><th>Trader</th><th>Account</th><th>Type · DD</th><th>Phase</th><th style="text-align:right">Reported</th><th style="text-align:right">Payable</th><th>Status</th></tr></thead>
@@ -820,7 +829,7 @@ function renderCases(){
                 <td>${statusPill(c.status)}</td>
               </tr>`;
             }).join('')}
-            ${list.length===0?`<tr><td colspan="8" style="text-align:center;padding:48px;color:var(--faint)">No cases match this filter.</td></tr>`:''}
+            ${list.length===0?`<tr><td colspan="8" style="text-align:center;padding:48px;color:var(--faint)">No ${phaseTab==='FUNDED'?'funded':'evaluation'} cases yet — start one with “+ New review”.</td></tr>`:''}
           </tbody>
         </table>
       </div>
@@ -830,28 +839,39 @@ function renderCases(){
 /* ─── new case ─────────────────────────────────────────────────────────── */
 function renderNewCase(){
   return renderShell(`
-    <div class="fade-in" style="max-width:720px">
+    <div class="fade-in" style="max-width:680px">
       <div class="crumbs"><div>Cases / <b>New review</b></div></div>
       <div class="eyebrow" style="margin-bottom:6px">New review</div>
-      <h1 style="font-size:22px;font-weight:600;margin:0 0 18px;letter-spacing:-.01em">Account context</h1>
-      <form id="newCaseForm" class="card" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-        <div class="field"><label>Trader email</label><input name="traderEmail" type="email" required value="(autofills from CSV)" /></div>
-        <div class="field"><label>Account number</label><input name="accountNumber" required value="(autofills from CSV)" /></div>
-        <div class="field"><label>Account size (USD)</label><input name="accountSize" type="number" step="0.01" value="50000" /></div>
-        <div class="field"><label>Reported P&amp;L (USD)</label><input name="reportedPnl" type="number" step="0.01" required value="0" /></div>
-        <div class="field"><label>Account type · daily DD / max DD</label>
-          <select name="accountType">
-            ${Object.entries(accountTypes).map(([k,a])=>`<option value="${k}" ${k==='INSTANT_FUNDED'?'selected':''}>${a.label} · ${(a.dailyDd*100).toFixed(0)}% / ${(a.maxDd*100).toFixed(0)}%</option>`).join('')}
-          </select>
-          <span class="help">Drives risk-exposure threshold + excessive-margin leverage. CSV upload may override.</span>
+      <h1 style="font-size:22px;font-weight:600;margin:0 0 6px;letter-spacing:-.01em">Upload trade history</h1>
+      <p style="color:var(--faint);font-size:12.5px;margin:0 0 18px">
+        Pick the phase, then drop the broker CSV. The engine auto-fills the trader email, account number, account size, account type, and parses the P&amp;L from the file — no manual entry.
+      </p>
+      <form id="newCaseUploadForm" class="card" style="display:flex;flex-direction:column;gap:18px">
+        <div class="field" style="margin:0">
+          <label>Phase</label>
+          <div style="display:flex;gap:10px">
+            <label style="flex:1;display:flex;align-items:center;gap:8px;background:var(--bg-elev);border:1px solid var(--line-strong);border-radius:8px;padding:12px 14px;cursor:pointer">
+              <input type="radio" name="phase" value="FUNDED" checked style="accent-color:var(--brand)" />
+              <div><div style="color:var(--ink);font-weight:500">Funded</div><div style="font-size:11px;color:var(--faint)">Forex 1:50 · Indices 1:10 · Commodities 1:10 · Crypto 1:1</div></div>
+            </label>
+            <label style="flex:1;display:flex;align-items:center;gap:8px;background:var(--bg-elev);border:1px solid var(--line-strong);border-radius:8px;padding:12px 14px;cursor:pointer">
+              <input type="radio" name="phase" value="PHASE_1" style="accent-color:var(--brand)" />
+              <div><div style="color:var(--ink);font-weight:500">Evaluation · Phase 1</div><div style="font-size:11px;color:var(--faint)">Forex 1:100 · Indices 1:20 · Commodities 1:20 · Crypto 1:2</div></div>
+            </label>
+          </div>
         </div>
-        <div class="field"><label>Phase</label>
-          <select name="phase"><option value="PHASE_1">Phase 1 (Evaluation)</option><option value="FUNDED" selected>Funded</option></select>
-          <span class="help">Funded: Forex 1:50, Indices 1:10, Commodities 1:10, Crypto 1:1. Evaluation: doubled.</span>
+        <div class="upload-zone" onclick="document.getElementById('newCaseCsv').click()">
+          <input id="newCaseCsv" type="file" accept=".csv" style="display:none" />
+          <div class="eyebrow" style="margin-bottom:6px">Step 2</div>
+          <div style="font-size:14px;color:var(--ink);font-weight:500;margin-bottom:6px">Drop closed_positions CSV here</div>
+          <div style="font-size:12px;color:var(--faint);margin-bottom:12px">
+            Trader email, account number, account size, account type and P&amp;L<br/>
+            are pulled from the CSV. Reviewer (you) is stamped automatically.
+          </div>
+          <button class="btn primary" type="button">Choose file</button>
         </div>
-        <div style="grid-column:span 2;display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
+        <div style="display:flex;justify-content:flex-end">
           <button class="btn" type="button" onclick="go('#/cases')">Cancel</button>
-          <button class="btn primary" type="submit">Create case →</button>
         </div>
       </form>
     </div>`);
@@ -1632,26 +1652,51 @@ function render(){
 
   root.innerHTML=body+(pdfCaseId?renderPdfModal(caseById(pdfCaseId)):'');
 
-  document.getElementById('newCaseForm')?.addEventListener('submit', e=>{
-    e.preventDefault();
-    const f=new FormData(e.target);
+  // New-review flow: one shot — pick phase, drop CSV, engine creates the case.
+  document.getElementById('newCaseCsv')?.addEventListener('change', async e=>{
+    const file=e.target.files?.[0]; if(!file) return;
+    const phaseEl=document.querySelector('input[name="phase"]:checked');
+    const phase=phaseEl?phaseEl.value:'FUNDED';
     const c={
-      id:'c'+(cases.length+1),
+      id:'c'+(cases.length+1)+'-'+Date.now().toString(36),
       reviewId:'AF-2026-001'+String(42+cases.length).padStart(2,'0'),
-      traderEmail:String(f.get('traderEmail')).toLowerCase(),
-      accountNumber:String(f.get('accountNumber')),
-      accountSizeCents:Math.round(Number(f.get('accountSize'))*100),
-      phase:f.get('phase'),
-      accountType:f.get('accountType'),
-      reportedPnlCents:Math.round(Number(f.get('reportedPnl'))*100),
-      parsedPnlCents:null, totalDeductionCents:0, payableAmountCents:null,
+      traderEmail:'(parsing…)', accountNumber:'—',
+      accountSizeCents:0, phase, accountType:'INSTANT_FUNDED',
+      reportedPnlCents:0, parsedPnlCents:null, totalDeductionCents:0, payableAmountCents:null,
       status:'DRAFT', createdAt:new Date().toISOString().slice(0,10),
       decidedAt:null, lockedAt:null, reviewer:session.name,
       upload:null, breaches:[], dailyPnl:[], perSymbolPnl:[], durationHist:[],
     };
     cases.unshift(c);
-    audit('CASE_CREATED',{reviewId:c.reviewId, traderEmail:c.traderEmail, accountType:c.accountType}, c.id);
-    go('#/cases/'+c.id);
+    try {
+      const result=await runRealEngineOnFile(file, c);
+      // Everything from the CSV — no manual entry needed.
+      c.accountSizeCents = result.account.accountSizeCents;
+      c.accountType      = result.account.accountType;
+      c.traderEmail      = result.account.traderEmail || c.traderEmail;
+      c.accountNumber    = result.account.accountNumber || c.accountNumber;
+      c.upload           = result.upload;
+      c.parsedPnlCents   = result.parsedPnlCents;
+      c.reportedPnlCents = result.parsedPnlCents;   // default to parsed; reviewer can override later if needed
+      c.breaches         = result.findings;
+      c.dailyPnl         = result.aggs.dailyPnl;
+      c.perSymbolPnl     = result.aggs.perSymbolPnl;
+      c.durationHist     = result.aggs.durationHist;
+      c.totalDeductionCents = c.breaches.reduce((s,b)=>s+(b.applied?b.suggestedDeductionCents:0),0);
+      c.payableAmountCents  = c.reportedPnlCents - c.totalDeductionCents;
+      c.status='IN_REVIEW';
+      audit('CASE_CREATED_FROM_CSV',{
+        reviewId:c.reviewId, traderEmail:c.traderEmail, accountType:c.accountType,
+        phase, sha256:c.upload.sha256, rowCount:c.upload.rowCount,
+        findingCount:c.breaches.length, deductionCents:c.totalDeductionCents,
+      }, c.id);
+      go('#/cases/'+c.id);
+    } catch (err) {
+      // Roll back the half-created case so the user can retry cleanly.
+      cases.shift();
+      alert('Could not parse / analyse this CSV:\n\n'+err.message);
+      render();
+    }
   });
 
   document.getElementById('csvInput')?.addEventListener('change', async e=>{
