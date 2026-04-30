@@ -466,7 +466,7 @@ let cases = [
 let auditLog = [];
 
 /* ─── persistence (localStorage) ──────────────────────────────────────── */
-const STATE_VERSION = '2026-04-30-rule6-no-stop-loss';
+const STATE_VERSION = '2026-04-30-rule6-admin-row';
 const STATE_KEY = 'atlas-funded-demo-state';
 function saveState(){
   try {
@@ -1438,6 +1438,7 @@ function renderAdminRules(){
     ['tick_scalping.window_seconds','Tick-scalping window (seconds)','Time window over which open-times are counted.'],
     ['excessive_margin.max_margin_fraction','Excessive margin · max margin fraction','e.g. 0.80 = a single trade using > 80% of available margin auto-deducts profit. Leverage by asset class × phase: Forex 1:100/1:50, Indices 1:20/1:10, Commodities 1:20/1:10, Crypto 1:2/1:1 (Phase 1 / Funded). Not editable here — engineering only.'],
     ['news_trading.window_seconds','News-trading window (seconds, ± around release)','Trades opened or closed within this window of a HIGH-impact event for the affected currency are flagged.'],
+    ['excessive_risk_taking.no_sl_threshold_fraction','Excessive risk-taking · no-SL threshold (fraction)','Flag the account when this fraction of trades or more were placed without a stop-loss. 0.80 = flag at 80%. Stored as a fraction (0.00 – 1.00).'],
     ['senior_approval.threshold_cents','Senior approval threshold (cents)','Cases with totalDeductionCents above this require senior sign-off. e.g. 50000 = $500.'],
   ];
   return renderShell(`
