@@ -325,8 +325,8 @@ let ruleText = {
   SUB_3_MIN: `**Sub-3-minute trades are not eligible for payout.**\n\nAtlas Funded considers any trade held for less than three minutes to be out of scope of the funded account program. Profit realised on such a trade is excluded from the payable amount. Losing trades held under three minutes are not penalised.`,
   CONCENTRATED_DAILY_LOSS: `**Risk exposure breach.**\n\nFor Atlas Funded accounts, the realised loss on any single instrument in a single UTC trading day must not exceed 50% of the account type's daily drawdown limit. Where this threshold is exceeded, the case is referred for manual review and Atlas Funded reserves the right to apply a deduction.`,
   TICK_SCALPING_CLUSTER: `**Tick-scalping / spam-trading pattern detected.**\n\nA cluster of three or more trades opened within a ten-second window suggests automated or bot-assisted execution.`,
-  EXCESSIVE_MARGIN_USAGE: `**Excessive margin usage.**\n\nAtlas Funded prohibits gambling-style position sizing. Where a single trade uses more than 80% of available margin relative to the account's initial balance, the trade is treated as out of scope of the funded account program and any profit realised on it is excluded from the payable amount. Leverage applied: Forex 1:50, Indices 1:10, Commodities 1:10, Crypto 1:1 (Funded phase).`,
-  NEWS_TRADING: `**Trading around high-impact news.**\n\nAtlas Funded accounts may not be traded within three minutes either side of a HIGH-impact ("red folder") economic release affecting the traded instrument. Calendar sources: ForexFactory, Investing.com, MyFxBook. Only RED / HIGH-impact releases are in scope.`,
+  EXCESSIVE_MARGIN_USAGE: `**Excessive margin usage.**\n\nAtlas Funded prohibits gambling-style position sizing. Where the **cumulative** margin used by all simultaneously-open positions exceeds 80% of the account's initial balance at any point in time, every trade open during that window is treated as out of scope of the funded account program and any profit realised on those winners is excluded from the payable amount. Leverage applied: Forex 1:50, Indices 1:10, Commodities 1:10, Crypto 1:1 (Funded — applied uniformly to all phases for the breach calculation).`,
+  NEWS_TRADING: `**Trading around high-impact news.**\n\nAtlas Funded accounts may not be traded within ±5 minutes of any HIGH-impact ("red folder") economic release. The trade is flagged regardless of which currency the news affects — gold, indices, crypto and crosses all sit downstream of major rate decisions and macro prints. Calendar sources: ForexFactory, Investing.com, MyFxBook.`,
 };
 
 // 6-month rolling calendar of HIGH-impact (red folder) events.
@@ -415,6 +415,15 @@ let economicEvents = [
   { id:'n0513', timeUtc:'2026-05-13T13:30:00Z', currency:'USD', name:'CPI m/m',                    impact:'HIGH', source:'forexfactory.com' },
   { id:'n0514', timeUtc:'2026-05-14T13:30:00Z', currency:'USD', name:'PPI m/m',                    impact:'HIGH', source:'myfxbook.com' },
   { id:'n0515', timeUtc:'2026-05-15T13:30:00Z', currency:'USD', name:'Retail Sales m/m',           impact:'HIGH', source:'forexfactory.com' },
+  // Additional red-folder events surfaced from real-case reviews
+  { id:'n0408a',timeUtc:'2026-04-08T02:00:00Z', currency:'NZD', name:'RBNZ Official Cash Rate',    impact:'HIGH', source:'forexfactory.com' },
+  { id:'n0408b',timeUtc:'2026-04-08T02:00:00Z', currency:'NZD', name:'RBNZ Rate Statement',        impact:'HIGH', source:'forexfactory.com' },
+  { id:'n0408c',timeUtc:'2026-04-08T03:00:00Z', currency:'NZD', name:'RBNZ Press Conference',      impact:'HIGH', source:'forexfactory.com' },
+  { id:'n0416', timeUtc:'2026-04-16T01:30:00Z', currency:'AUD', name:'Employment Change',          impact:'HIGH', source:'forexfactory.com' },
+  { id:'n0417', timeUtc:'2026-04-17T13:30:00Z', currency:'CAD', name:'CPI m/m',                    impact:'HIGH', source:'forexfactory.com' },
+  { id:'n0408d',timeUtc:'2026-04-08T13:30:00Z', currency:'CAD', name:'BoC Rate Decision',          impact:'HIGH', source:'investing.com' },
+  { id:'n0410b',timeUtc:'2026-04-10T01:30:00Z', currency:'AUD', name:'RBA Financial Stability Review', impact:'HIGH', source:'forexfactory.com' },
+  { id:'n0414', timeUtc:'2026-04-14T13:30:00Z', currency:'CAD', name:'Manufacturing Sales',        impact:'HIGH', source:'forexfactory.com' },
 ];
 
 let cases = [
@@ -559,17 +568,46 @@ function runTickScalping(trades, clusterSize, windowSec){
 
 /* Rule 4 — Excessive margin — DEDUCTION (winners only). Asset-class × phase leverage. */
 function runExcessiveMargin(trades, ctx, maxFraction){
-  const flagged=[];
-  for(const t of trades){
+  // Atlas rule: CUMULATIVE simultaneous-open-position margin > 80% of balance is a breach.
+  // Always uses FUNDED leverage (the stricter, real-broker side) regardless of evaluation phase.
+  // Decorate trades with margin metadata.
+  const decorated=trades.map(t=>{
     const cs=CONTRACT_SIZE_TABLE[t.symbol] ?? 100000;
     const assetClass=classifyAsset(t.symbol);
-    const leverage=LEVERAGE_TABLE[assetClass]?.[ctx.phase];
-    if(!leverage||leverage<=0) continue;
+    const leverage=LEVERAGE_TABLE[assetClass]?.FUNDED ?? 0;
     const notionalCents=Math.round(t.volume*cs*t.openPrice*100);
-    const marginCents=Math.round(notionalCents/leverage);
-    const fraction=ctx.balanceCents>0 ? marginCents/ctx.balanceCents : 0;
-    if(fraction>maxFraction) flagged.push({...t, fraction, leverage, assetClass});
+    const marginCents=leverage>0 ? Math.round(notionalCents/leverage) : 0;
+    return {...t, leverage, assetClass, marginCents};
+  });
+  // Build a sorted event timeline of opens (+) and closes (-) and sweep through, tracking
+  // cumulative margin and which trades are open at any moment > threshold.
+  const events=[];
+  for(const t of decorated){
+    events.push({tMs:t.openTimeMs,  delta:+t.marginCents, uid:t.uid, kind:'open'});
+    events.push({tMs:t.closeTimeMs, delta:-t.marginCents, uid:t.uid, kind:'close'});
   }
+  // closes process before opens at the same timestamp so a closing trade clears its margin first.
+  events.sort((a,b)=>(a.tMs-b.tMs) || ((a.kind==='close'?-1:1) - (b.kind==='close'?-1:1)));
+  const open=new Map();
+  const flaggedUids=new Set();
+  const peakByUid=new Map();
+  let cum=0;
+  for(const e of events){
+    cum+=e.delta;
+    if(e.kind==='open') open.set(e.uid,true);
+    const fraction=ctx.balanceCents>0 ? cum/ctx.balanceCents : 0;
+    if(fraction>maxFraction){
+      for(const uid of open.keys()){
+        flaggedUids.add(uid);
+        const prev=peakByUid.get(uid)??0;
+        if(fraction>prev) peakByUid.set(uid,fraction);
+      }
+    }
+    if(e.kind==='close') open.delete(e.uid);
+  }
+  const flagged=decorated
+    .filter(t=>flaggedUids.has(t.uid))
+    .map(t=>({...t, fraction:peakByUid.get(t.uid)??0}));
   if(flagged.length===0) return null;
   flagged.sort((a,b)=>a.closeTimeMs-b.closeTimeMs);
   const winners=flagged.filter(t=>t.profitCents>0);
@@ -578,7 +616,7 @@ function runExcessiveMargin(trades, ctx, maxFraction){
     open:isoUtcShort(t.openTimeMs),close:isoUtcShort(t.closeTimeMs),
     openIso:new Date(t.openTimeMs).toISOString(),closeIso:new Date(t.closeTimeMs).toISOString(),
     dur:durString(t.durationSeconds),profit:t.profitCents,
-    notional:`${(t.fraction*100).toFixed(0)}% margin · 1:${t.leverage} ${t.assetClass}`});
+    notional:`peak ${(t.fraction*100).toFixed(0)}% cumulative margin · 1:${t.leverage} ${t.assetClass} (Funded)`});
 
   if(winners.length===0){
     return {
@@ -602,13 +640,14 @@ function runExcessiveMargin(trades, ctx, maxFraction){
 
 /* Rule 5 — News trading — flag-only, ±windowSec around HIGH-impact events. */
 function runNewsTradingRule(trades, events, windowSec){
+  // Atlas rule: ALL HIGH-impact (red-folder) news events flag any trade whose OPEN or CLOSE
+  // falls within ±windowSec, regardless of currency-affects mapping. The currency-affects
+  // table is no longer used for matching — it's metadata only.
   const byEvent=new Map();
   for(const ev of events){
     if(ev.impact!=='HIGH') continue;
     const evMs=Date.parse(ev.timeUtc);
-    const affected=CURRENCY_AFFECTS[ev.currency]||[];
     for(const t of trades){
-      if(!affected.includes(t.symbol)) continue;
       const dOpen=t.openTimeMs-evMs, dClose=t.closeTimeMs-evMs;
       const matchedOn=Math.abs(dOpen)<=windowSec*1000?'OPEN'
                      :Math.abs(dClose)<=windowSec*1000?'CLOSE':null;
@@ -844,7 +883,7 @@ function renderNewCase(){
       <div class="eyebrow" style="margin-bottom:6px">New review</div>
       <h1 style="font-size:22px;font-weight:600;margin:0 0 6px;letter-spacing:-.01em">Upload trade history</h1>
       <p style="color:var(--faint);font-size:12.5px;margin:0 0 18px">
-        Pick the phase, then drop the broker CSV. The engine auto-fills the trader email, account number, account size, account type, and parses the P&amp;L from the file — no manual entry.
+        Pick the phase, type the broker P&amp;L, and drop the CSV. The engine auto-fills trader email, account number, account size and account type from the file. P&amp;L is manual because broker P&amp;L can differ from sum-of-trade-profits (commissions, swaps, open positions).
       </p>
       <form id="newCaseUploadForm" class="card" style="display:flex;flex-direction:column;gap:18px">
         <div class="field" style="margin:0">
@@ -860,12 +899,20 @@ function renderNewCase(){
             </label>
           </div>
         </div>
+        <div class="field" style="margin:0">
+          <label>Account P&amp;L from broker dashboard (USD)</label>
+          <input id="newCasePnl" type="text" placeholder="e.g. 4405.00"
+            style="background:var(--bg-elev);border:1px solid var(--line-strong);border-radius:8px;padding:12px 14px;font-family:'JetBrains Mono',monospace;color:var(--ink);width:100%;font-size:14px" />
+          <div style="font-size:11px;color:var(--faint);margin-top:6px">
+            Type the P&amp;L exactly as shown on the broker / dashboard. Leave blank to fall back to the sum of trade profits from the CSV (which often differs from the broker figure due to commissions, swaps, and open positions).
+          </div>
+        </div>
         <div class="upload-zone" onclick="document.getElementById('newCaseCsv').click()">
           <input id="newCaseCsv" type="file" accept=".csv" style="display:none" />
           <div class="eyebrow" style="margin-bottom:6px">Step 2</div>
           <div style="font-size:14px;color:var(--ink);font-weight:500;margin-bottom:6px">Drop closed_positions CSV here</div>
           <div style="font-size:12px;color:var(--faint);margin-bottom:12px">
-            Trader email, account number, account size, account type and P&amp;L<br/>
+            Trader email, account number, account size, account type<br/>
             are pulled from the CSV. Reviewer (you) is stamped automatically.
           </div>
           <button class="btn primary" type="button">Choose file</button>
@@ -1657,6 +1704,9 @@ function render(){
     const file=e.target.files?.[0]; if(!file) return;
     const phaseEl=document.querySelector('input[name="phase"]:checked');
     const phase=phaseEl?phaseEl.value:'FUNDED';
+    const pnlEl=document.getElementById('newCasePnl');
+    const manualPnlStr=(pnlEl?.value||'').trim();
+    const manualPnlCents=manualPnlStr?parseMoneyToCents(manualPnlStr):null;
     const c={
       id:'c'+(cases.length+1)+'-'+Date.now().toString(36),
       reviewId:'AF-2026-001'+String(42+cases.length).padStart(2,'0'),
@@ -1677,7 +1727,7 @@ function render(){
       c.accountNumber    = result.account.accountNumber || c.accountNumber;
       c.upload           = result.upload;
       c.parsedPnlCents   = result.parsedPnlCents;
-      c.reportedPnlCents = result.parsedPnlCents;   // default to parsed; reviewer can override later if needed
+      c.reportedPnlCents = (manualPnlCents !== null) ? manualPnlCents : result.parsedPnlCents;   // reviewer-typed value wins; falls back to parsed sum if blank
       c.breaches         = result.findings;
       c.dailyPnl         = result.aggs.dailyPnl;
       c.perSymbolPnl     = result.aggs.perSymbolPnl;
