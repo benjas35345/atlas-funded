@@ -436,9 +436,46 @@ let cases = [
 ];
 
 let auditLog = [];
+
+/* ─── persistence (localStorage) ──────────────────────────────────────── */
+const STATE_VERSION = '2026-04-30-news-auto-deduction-payable-clamp';
+const STATE_KEY = 'atlas-funded-demo-state';
+function saveState(){
+  try {
+    localStorage.setItem(STATE_KEY, JSON.stringify({
+      version: STATE_VERSION,
+      cases, auditLog, economicEvents, ruleConfig, ruleText,
+      accountTypes, allowedEmails, users,
+    }));
+  } catch (e) { /* quota / private mode — silently degrade to in-memory */ }
+}
+function loadState(){
+  try {
+    const raw=localStorage.getItem(STATE_KEY);
+    if(!raw) return false;
+    const parsed=JSON.parse(raw);
+    if(parsed.version!==STATE_VERSION) return false;  // schema change — discard
+    if(Array.isArray(parsed.cases))         cases         = parsed.cases;
+    if(Array.isArray(parsed.auditLog))      auditLog      = parsed.auditLog;
+    if(Array.isArray(parsed.economicEvents))economicEvents= parsed.economicEvents;
+    if(parsed.ruleConfig)                   ruleConfig    = {...ruleConfig, ...parsed.ruleConfig};
+    if(parsed.ruleText)                     ruleText      = {...ruleText,   ...parsed.ruleText};
+    if(parsed.accountTypes)                 accountTypes  = {...accountTypes,...parsed.accountTypes};
+    if(Array.isArray(parsed.allowedEmails)) allowedEmails = parsed.allowedEmails;
+    if(Array.isArray(parsed.users))         users         = parsed.users;
+    return true;
+  } catch (e) { return false; }
+}
+function resetDemoState(){
+  if(!confirm('This wipes all demo cases, audit log, and admin edits. Seed data will be restored on the next refresh. Continue?')) return;
+  try { localStorage.removeItem(STATE_KEY); } catch (e) {}
+  location.reload();
+}
+
 function audit(action, after, caseId) {
   auditLog.unshift({ id:'a'+Date.now()+Math.random(), ts:new Date().toISOString(),
     actor:session.name, action, caseId, after });
+  saveState();
 }
 function caseById(id) { return cases.find(c => c.id === id); }
 
@@ -1473,9 +1510,12 @@ function renderAdminAudit(){
       <div class="eyebrow">Admin</div>
       ${adminTabs('#/admin/audit')}
       <div class="card" style="padding:0;overflow:hidden">
-        <div style="padding:18px 18px 0">
-          <h2 style="font-size:18px;font-weight:600;margin:0 0 4px">Audit log</h2>
-          <p style="color:var(--faint);font-size:12px;margin:0 0 14px">Every state-changing action recorded here.</p>
+        <div style="padding:18px 18px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div>
+            <h2 style="font-size:18px;font-weight:600;margin:0 0 4px">Audit log</h2>
+            <p style="color:var(--faint);font-size:12px;margin:0 0 14px">Every state-changing action recorded here. State persists across page refreshes via localStorage.</p>
+          </div>
+          <button class="btn" onclick="resetDemoState()" style="font-size:12px;white-space:nowrap">Reset demo data</button>
         </div>
         <table>
           <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Case</th><th>Detail</th></tr></thead>
@@ -1707,7 +1747,9 @@ function flash(msg){
 }
 
 /* ─── master render + form handlers ────────────────────────────────────── */
+let __stateLoaded=false;
 function render(){
+  if(!__stateLoaded){ __stateLoaded=true; loadState(); }
   const root=document.getElementById('app');
   if(!signedIn){
     root.innerHTML=renderSignIn();
