@@ -326,7 +326,7 @@ let ruleText = {
   CONCENTRATED_DAILY_LOSS: `**Risk exposure breach.**\n\nFor Atlas Funded accounts, the realised loss on any single instrument in a single UTC trading day must not exceed 50% of the account type's daily drawdown limit. Where this threshold is exceeded, the case is referred for manual review and Atlas Funded reserves the right to apply a deduction.`,
   TICK_SCALPING_CLUSTER: `**Tick-scalping / spam-trading pattern detected.**\n\nA cluster of three or more trades opened within a ten-second window suggests automated or bot-assisted execution.`,
   EXCESSIVE_MARGIN_USAGE: `**Excessive margin usage.**\n\nAtlas Funded prohibits gambling-style position sizing. Where the **cumulative** margin used by all simultaneously-open positions exceeds 80% of the account's initial balance at any point in time, every trade open during that window is treated as out of scope of the funded account program and any profit realised on those winners is excluded from the payable amount. Leverage applied: Forex 1:50, Indices 1:10, Commodities 1:10, Crypto 1:1 (Funded — applied uniformly to all phases for the breach calculation).`,
-  NEWS_TRADING: `**Trading around high-impact news.**\n\nAtlas Funded accounts may not be traded within ±5 minutes of any HIGH-impact ("red folder") economic release. The trade is flagged regardless of which currency the news affects — gold, indices, crypto and crosses all sit downstream of major rate decisions and macro prints. Calendar sources: ForexFactory, Investing.com, MyFxBook.`,
+  NEWS_TRADING: `**Trading around high-impact news.**\n\nAtlas Funded accounts may not be traded within ±5 minutes of any HIGH-impact ("red folder") economic release. Profit on a winning trade with an open or close inside the news window is auto-deducted; losing trades inside the window stay in the case file as context but are not penalised. Multiple HIGH-impact releases at the same UTC moment (e.g. RBNZ Cash Rate + Rate Statement) appear under one card with a single deduction — the trade is flagged once, not per release. Calendar sources: ForexFactory, Investing.com, MyFxBook.`,
 };
 
 // 6-month rolling calendar of HIGH-impact (red folder) events.
@@ -683,10 +683,20 @@ function runNewsTradingRule(trades, events, windowSec){
       const eventLabel=evs.map(e=>e.name).join(' · ');
       const currencies=[...new Set(evs.map(e=>e.currency))].join('/');
       const rows=[...byTradeUid.values()].map(r=>({...r, eventName:r.eventNames.join(' · ')}));
+      // Winners-only deduction: each unique trade contributes its profit ONCE,
+      // regardless of how many simultaneous events flagged it. Losers contribute $0
+      // but stay in the table for reviewer context.
+      const winnersTotal=rows
+        .filter(r=>r.profit>0)
+        .reduce((s,r)=>s+r.profit,0);
       return {
-        id:`b-news-${timeUtc}`, ruleKey:'NEWS_TRADING', kind:'flag', applied:true,
-        suggestedDeductionCents:0,
-        meta:{eventCount:evs.length, windowSec, event:`${eventLabel} · ${currencies}`},
+        id:`b-news-${timeUtc}`, ruleKey:'NEWS_TRADING',
+        kind: winnersTotal>0 ? 'deduction' : 'flag',
+        applied:true,
+        suggestedDeductionCents: winnersTotal,
+        meta:{eventCount:evs.length, windowSec, event:`${eventLabel} · ${currencies}`,
+              winningCount:rows.filter(r=>r.profit>0).length,
+              losingCount:rows.filter(r=>r.profit<=0).length},
         trades:rows.sort((a,b)=>a.openIso.localeCompare(b.openIso)),
       };
     });
@@ -777,7 +787,7 @@ let route = window.location.hash || '#/cases';
 function go(hash){window.location.hash = hash;}
 window.addEventListener('hashchange', () => {route = window.location.hash || '#/cases'; render();});
 
-const DEDUCTION_RULE_KEYS = new Set(['SUB_3_MIN','EXCESSIVE_MARGIN_USAGE']);
+const DEDUCTION_RULE_KEYS = new Set(['SUB_3_MIN','EXCESSIVE_MARGIN_USAGE','NEWS_TRADING']);
 function isDeductionRuleKey(k){return DEDUCTION_RULE_KEYS.has(k);}
 function isDeductionKind(b){return b.kind==='deduction' || (isDeductionRuleKey(b.ruleKey) && b.kind!=='flag');}
 
