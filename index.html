@@ -197,7 +197,7 @@
   .pdf-doc .pdf-header{display:flex;justify-content:space-between;align-items:center;padding-bottom:22px;border-bottom:1px solid #e5e7eb;margin-bottom:22px;
     border-bottom:1px solid #e5e7eb;padding-bottom:14px;margin-bottom:24px}
   .pdf-doc .pdf-brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:14px;letter-spacing:-.01em;color:#0d1018}
-  .pdf-doc .pdf-brand .pdf-brand-mark{width:28px;height:25px;color:#aacc52;display:inline-flex;align-items:center;justify-content:center}
+  .pdf-doc .pdf-brand .pdf-brand-mark{width:32px;height:32px;color:#aacc52;display:inline-flex;align-items:center;justify-content:center}
   .pdf-doc .pdf-brand .pdf-brand-mark svg{width:100%;height:100%}
   .pdf-doc .pdf-brand b{color:#aacc52;font-weight:600}
   .pdf-doc .pdf-section{font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:#7a8290;font-weight:600;
@@ -261,20 +261,22 @@ function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-let session = { email:'jeremy.bridges@atlasfunded.com', name:'Jeremy Bridges', team:'Risk Team', role:'SENIOR_REVIEWER' };
+let session = { email:'risk@atlasfunded.com', name:'Jeremy Bridges', team:'Risk Team', role:'SENIOR_REVIEWER' };
 
-/** Inline SVG of the AtlasFunded mark — a stylised A with a swoosh under it.
- *  Uses currentColor so the same SVG renders chartreuse in the dark UI and
- *  flat ink-black on the white PDF surface. Pass size in px. */
-function atlasMarkSvg(size=24){
-  return `<svg viewBox="0 0 36 32" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${Math.round(size*32/36)}" aria-label="Atlas Funded mark">
-    <path d="M16 3 L24 3 L34 28 L28 28 L25 21 L15 21 L12 28 L6 28 Z" fill="currentColor"/>
-    <path d="M17 17 L23 17 L20.5 11 L19.5 11 Z" fill="currentColor"/>
-    <path d="M2 28 Q-1 19 8 13" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+/** Inline SVG of the AtlasFunded mark — solid filled triangle "A" with a thin
+ *  horizontal slot cut through the lower portion, plus a separate curved arc
+ *  below it. Uses currentColor so it renders chartreuse on the dark UI and
+ *  the same hue on the light PDF surface. Pass display size in px. */
+function atlasMarkSvg(size=28){
+  // viewBox is square (0 0 80 80) — the visual mark is centred and includes
+  // the arc below the A with a gap.
+  return `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" aria-label="Atlas Funded mark">
+    <path fill="currentColor" fill-rule="evenodd" d="M 40 4 L 78 62 L 2 62 Z M 18 52 L 62 52 L 62 57 L 18 57 Z"/>
+    <path d="M 6 70 Q 40 86 74 70" stroke="currentColor" stroke-width="6.5" fill="none" stroke-linecap="round"/>
   </svg>`;
 }
 function atlasWordmark(size=22){
-  return `<span class="brand-mark" style="width:${size}px;height:${Math.round(size*32/36)}px">${atlasMarkSvg(size)}</span><span class="brand-word">Atlas<b>Funded</b></span>`;
+  return `<span class="brand-mark" style="width:${size}px;height:${size}px">${atlasMarkSvg(size)}</span><span class="brand-word">Atlas<b>Funded</b></span>`;
 }
 
 let allowedEmails = [
@@ -462,7 +464,7 @@ let cases = [
 let auditLog = [];
 
 /* ─── persistence (localStorage) ──────────────────────────────────────── */
-const STATE_VERSION = '2026-04-30-logo-pdf-rebuild-jeremy';
+const STATE_VERSION = '2026-04-30-pdf-footer-only';
 const STATE_KEY = 'atlas-funded-demo-state';
 function saveState(){
   try {
@@ -1581,7 +1583,7 @@ function renderPdfModal(c){
         </div>
         <div class="pdf-doc">
           <div class="pdf-header">
-            <div class="pdf-brand"><span class="pdf-brand-mark">${atlasMarkSvg(28)}</span><span>Atlas<b>Funded</b><span style="color:#7a8290;font-weight:500;margin-left:8px">· Risk Operations</span></span></div>
+            <div class="pdf-brand"><span class="pdf-brand-mark">${atlasMarkSvg(32)}</span><span>Atlas<b>Funded</b><span style="color:#7a8290;font-weight:500;margin-left:8px">· Risk Operations</span></span></div>
             <div style="text-align:right">
               <div class="mono" style="font-size:10px;color:#5b6470">${c.reviewId}</div>
               <div class="mono" style="font-size:9px;color:#959aa2;margin-top:2px">${new Date().toISOString().slice(0,10)} UTC</div>
@@ -1672,31 +1674,12 @@ function renderPdfModal(c){
             }).join('')}
           `}
 
-          <div class="pdf-signature">
-            <div>
-              <div class="pdf-sig-l">Decided by</div>
-              <div class="pdf-sig-v">${escapeHtml(c.decidedBy||session.name)}</div>
-              <div class="pdf-sig-v" style="color:#7a8290;font-size:10px;margin-top:1px">${escapeHtml(c.decidedByTeam||session.team||'')} · ${escapeHtml((c.decidedByRole||session.role||'').replace('_',' ').toLowerCase())}</div>
-            </div>
-            <div style="text-align:right">
-              <div class="pdf-sig-l">Decided on</div>
-              <div class="pdf-sig-v mono">${(c.decision?.decidedAt||c.decidedAt||new Date().toISOString()).replace('T',' ').slice(0,19)} UTC</div>
-            </div>
-            <div>
-              <div class="pdf-sig-l">Source CSV hash</div>
-              <div class="pdf-sig-v mono">${(c.upload?.sha256||'').slice(0,32)}…</div>
-            </div>
-            <div style="text-align:right">
-              <div class="pdf-sig-l">Engine version</div>
-              <div class="pdf-sig-v mono">v0.2.0 · ${STATE_VERSION}</div>
-            </div>
-          </div>
           <div class="pdf-appeals">
             <h3>If you disagree with this outcome</h3>
             <p>You may submit an appeal within 14 days by replying to the email this report was sent with. Include the review reference shown at the top of this document. Appeals are reviewed by a senior member of the Risk Operations team and a written response is provided within five business days.</p>
           </div>
           <div class="pdf-footer">
-            <span>Atlas Funded Ltd. · Risk Operations · ${escapeHtml(session.email)}</span>
+            <span>${escapeHtml(c.decidedBy||session.name)} · risk@atlasfunded.com</span>
             <span>${c.reviewId} · ${new Date().toISOString().slice(0,10)}</span>
           </div>
         </div>
