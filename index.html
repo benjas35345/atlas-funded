@@ -33,8 +33,10 @@
   .nav{background:var(--bg-elev);border-right:1px solid var(--line);padding:18px 14px;
     display:flex;flex-direction:column;gap:24px}
   .brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:-.01em;padding:0 4px}
-  .brand-mark{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#E1FFA0 0%,#a4d062 100%);position:relative;box-shadow:0 0 0 1px rgba(255,255,255,.06) inset}
-  .brand-mark::after{content:"";position:absolute;inset:5px;border-radius:2px;background:rgba(0,0,0,.55)}
+  .brand-mark{width:24px;height:24px;color:var(--brand);display:inline-flex;align-items:center;justify-content:center}
+  .brand-mark svg{width:100%;height:100%;display:block}
+  .brand-word{font-weight:600;font-size:14px;letter-spacing:-.01em;color:var(--ink)}
+  .brand-word b{color:var(--brand);font-weight:600}
   .nav-section h6{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
     margin:0 6px 6px;font-weight:600}
   .nav a{display:flex;align-items:center;justify-content:space-between;color:var(--muted);
@@ -187,34 +189,42 @@
     border-bottom:1px solid #e5e7eb;background:#fafafa}
   .modal-header .x{cursor:pointer;color:#5b6470;font-size:18px;padding:4px 8px}
 
-  .pdf-doc{background:#fff;color:#0a0d14;font-family:'Inter',sans-serif;padding:48px;position:relative}
-  .pdf-doc::before{content:"";position:absolute;top:0;left:0;right:0;height:6px;background:#E1FFA0}
-  .pdf-doc h1{font-size:18px;margin:0 0 4px;letter-spacing:-.3px}
-  .pdf-doc .pdf-eyebrow{font-size:8px;letter-spacing:1.2px;text-transform:uppercase;color:#959aa2;margin-bottom:4px;font-weight:500}
-  .pdf-doc .pdf-sub{font-size:10px;color:#5b6470;margin-bottom:16px}
-  .pdf-doc .pdf-header{display:flex;justify-content:space-between;align-items:flex-end;
+  .pdf-doc{background:#fff;color:#0d1018;font-family:'Inter',sans-serif;padding:56px 56px 40px;position:relative}
+  .pdf-doc::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#0d1018 0%,#0d1018 30%,#aacc52 30%,#aacc52 100%)}
+  .pdf-doc h1{font-size:22px;margin:6px 0 2px;letter-spacing:-.4px;font-weight:600}
+  .pdf-doc .pdf-eyebrow{font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:#7a8290;margin-bottom:6px;font-weight:600}
+  .pdf-doc .pdf-sub{font-size:11px;color:#444b58;margin-bottom:22px;line-height:1.55}
+  .pdf-doc .pdf-header{display:flex;justify-content:space-between;align-items:center;padding-bottom:22px;border-bottom:1px solid #e5e7eb;margin-bottom:22px;
     border-bottom:1px solid #e5e7eb;padding-bottom:14px;margin-bottom:24px}
-  .pdf-doc .pdf-brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:12px}
-  .pdf-doc .pdf-brand-mark{width:14px;height:14px;background:#E1FFA0;border-radius:3px}
-  .pdf-doc .pdf-section{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:#959aa2;
+  .pdf-doc .pdf-brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:14px;letter-spacing:-.01em;color:#0d1018}
+  .pdf-doc .pdf-brand .pdf-brand-mark{width:28px;height:25px;color:#aacc52;display:inline-flex;align-items:center;justify-content:center}
+  .pdf-doc .pdf-brand .pdf-brand-mark svg{width:100%;height:100%}
+  .pdf-doc .pdf-brand b{color:#aacc52;font-weight:600}
+  .pdf-doc .pdf-section{font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:#7a8290;font-weight:600;
     font-weight:600;border-bottom:.5px solid #e5e7eb;padding-bottom:6px;margin-bottom:10px;margin-top:18px}
-  .pdf-doc .pdf-finding{border:.5px solid #e5e7eb;padding:12px;margin-bottom:10px;border-radius:2px;border-left:2px solid #c43c2e}
-  .pdf-doc .pdf-finding-h{display:flex;justify-content:space-between;margin-bottom:6px}
-  .pdf-doc .pdf-finding-h .name{font-size:11px;font-weight:600}
-  .pdf-doc .pdf-finding-h .tag{font-size:8px;letter-spacing:.8px;text-transform:uppercase;font-weight:600;color:#c43c2e}
-  .pdf-doc .pdf-finding-body{font-size:9.5px;color:#5b6470;line-height:1.5;margin-top:4px;margin-bottom:8px;white-space:pre-wrap}
+  .pdf-doc .pdf-finding{border:1px solid #e5e7eb;padding:14px 16px;margin-bottom:10px;border-radius:4px;border-left:3px solid #c43c2e;background:#fff}
+  .pdf-doc .pdf-finding-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .pdf-doc .pdf-finding-h .name{font-size:12px;font-weight:600;color:#0d1018}
+  .pdf-doc .pdf-finding-h .tag{font-size:9px;letter-spacing:1px;text-transform:uppercase;font-weight:600;color:#fff;background:#c43c2e;padding:3px 7px;border-radius:3px;font-family:'JetBrains Mono',monospace}
+  .pdf-doc .pdf-finding-body{font-size:10.5px;color:#444b58;line-height:1.55;margin:6px 0 10px;white-space:pre-wrap}
   .pdf-doc .pdf-table{width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:9px;margin-top:6px}
   .pdf-doc .pdf-table th{font-size:8px;color:#959aa2;text-transform:uppercase;letter-spacing:.6px;
     padding:5px 0;border-bottom:.5px solid #e5e7eb;background:transparent;font-weight:500;text-align:left}
   .pdf-doc .pdf-table td{padding:5px 0;border-bottom:.5px solid #e5e7eb;color:#0a0d14;background:transparent}
-  .pdf-doc .pdf-figs{display:flex;flex-wrap:wrap;border-top:.5px solid #e5e7eb;margin-top:12px;padding-top:10px}
-  .pdf-doc .pdf-fig{width:33.33%}
-  .pdf-doc .pdf-fig-l{font-size:8px;color:#959aa2;text-transform:uppercase;letter-spacing:.8px}
-  .pdf-doc .pdf-fig-v{font-size:11px;font-family:'JetBrains Mono',monospace;margin-top:2px}
+  .pdf-doc .pdf-figs{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#e5e7eb;border:1px solid #e5e7eb;border-radius:4px;overflow:hidden;margin:14px 0 24px}
+  .pdf-doc .pdf-fig{background:#fafbfc;padding:12px 14px}
+  .pdf-doc .pdf-fig-l{font-size:9px;color:#7a8290;text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:4px}
+  .pdf-doc .pdf-fig-v{font-size:14px;font-family:'JetBrains Mono',monospace;font-weight:600;color:#0d1018}
   .pdf-doc .pdf-fig-v.signal{color:#c43c2e}
-  .pdf-doc .pdf-fig-v.ok{color:#2f8a5e}
-  .pdf-doc .pdf-appeals{margin-top:24px;padding:12px;background:#fafafa;border:.5px solid #e5e7eb}
-  .pdf-doc .pdf-appeals h3{font-size:10px;font-weight:600;margin:0 0 4px}
+  .pdf-doc .pdf-fig-v.ok{color:#2a7a52}
+  .pdf-doc .pdf-appeals{margin-top:28px;padding:16px 18px;background:#fafbfc;border:1px solid #e5e7eb;border-radius:4px}
+  .pdf-doc .pdf-appeals h3{font-size:11px;font-weight:600;margin:0 0 6px;color:#0d1018}
+  .pdf-doc .pdf-appeals p{font-size:10.5px;color:#444b58;line-height:1.55;margin:0}
+  .pdf-doc .pdf-signature{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:24px;padding:18px 20px;background:#fafbfc;border:1px solid #e5e7eb;border-radius:4px}
+  .pdf-doc .pdf-signature .pdf-sig-l{font-size:9px;color:#7a8290;text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:3px}
+  .pdf-doc .pdf-signature .pdf-sig-v{font-size:11px;color:#0d1018;font-weight:500}
+  .pdf-doc .pdf-signature .pdf-sig-v.mono{font-family:'JetBrains Mono',monospace;font-size:10px;color:#444b58;font-weight:400;word-break:break-all}
+  .pdf-doc .pdf-footer{margin-top:18px;padding-top:14px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9px;color:#7a8290;font-family:'JetBrains Mono',monospace}
   .pdf-doc .pdf-appeals p{font-size:9px;color:#5b6470;line-height:1.5;margin:0}
   .pdf-doc .pdf-footer{font-size:8px;color:#959aa2;font-family:'JetBrains Mono',monospace;
     border-top:.5px solid #e5e7eb;padding-top:8px;margin-top:24px;display:flex;justify-content:space-between}
@@ -251,7 +261,21 @@ function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-let session = { email:'cian@atlasfunded.com', name:'Cian', role:'SENIOR_REVIEWER' };
+let session = { email:'jeremy.bridges@atlasfunded.com', name:'Jeremy Bridges', team:'Risk Team', role:'SENIOR_REVIEWER' };
+
+/** Inline SVG of the AtlasFunded mark — a stylised A with a swoosh under it.
+ *  Uses currentColor so the same SVG renders chartreuse in the dark UI and
+ *  flat ink-black on the white PDF surface. Pass size in px. */
+function atlasMarkSvg(size=24){
+  return `<svg viewBox="0 0 36 32" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${Math.round(size*32/36)}" aria-label="Atlas Funded mark">
+    <path d="M16 3 L24 3 L34 28 L28 28 L25 21 L15 21 L12 28 L6 28 Z" fill="currentColor"/>
+    <path d="M17 17 L23 17 L20.5 11 L19.5 11 Z" fill="currentColor"/>
+    <path d="M2 28 Q-1 19 8 13" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  </svg>`;
+}
+function atlasWordmark(size=22){
+  return `<span class="brand-mark" style="width:${size}px;height:${Math.round(size*32/36)}px">${atlasMarkSvg(size)}</span><span class="brand-word">Atlas<b>Funded</b></span>`;
+}
 
 let allowedEmails = [
   { email:'cian@atlasfunded.com',  addedAt:'2026-01-04', addedBy:'admin' },
@@ -438,7 +462,7 @@ let cases = [
 let auditLog = [];
 
 /* ─── persistence (localStorage) ──────────────────────────────────────── */
-const STATE_VERSION = '2026-04-30-news-auto-deduction-payable-clamp';
+const STATE_VERSION = '2026-04-30-logo-pdf-rebuild-jeremy';
 const STATE_KEY = 'atlas-funded-demo-state';
 function saveState(){
   try {
@@ -867,7 +891,7 @@ function renderShell(content){
   return `
     <div class="app">
       <nav class="nav">
-        <div class="brand"><span class="brand-mark"></span><span>Atlas <span style="color:var(--brand)">Funded</span></span></div>
+        <div class="brand">${atlasWordmark(22)}</div>
         <div class="nav-section">
           <h6>Workspace</h6>
           <a href="#/cases" class="${isActive('#/cases')}">Cases <span class="badge">${cases.length}</span></a>
@@ -1557,7 +1581,7 @@ function renderPdfModal(c){
         </div>
         <div class="pdf-doc">
           <div class="pdf-header">
-            <div class="pdf-brand"><span class="pdf-brand-mark"></span><span>Atlas Funded · Risk Operations</span></div>
+            <div class="pdf-brand"><span class="pdf-brand-mark">${atlasMarkSvg(28)}</span><span>Atlas<b>Funded</b><span style="color:#7a8290;font-weight:500;margin-left:8px">· Risk Operations</span></span></div>
             <div style="text-align:right">
               <div class="mono" style="font-size:10px;color:#5b6470">${c.reviewId}</div>
               <div class="mono" style="font-size:9px;color:#959aa2;margin-top:2px">${new Date().toISOString().slice(0,10)} UTC</div>
@@ -1648,13 +1672,32 @@ function renderPdfModal(c){
             }).join('')}
           `}
 
+          <div class="pdf-signature">
+            <div>
+              <div class="pdf-sig-l">Decided by</div>
+              <div class="pdf-sig-v">${escapeHtml(c.decidedBy||session.name)}</div>
+              <div class="pdf-sig-v" style="color:#7a8290;font-size:10px;margin-top:1px">${escapeHtml(c.decidedByTeam||session.team||'')} · ${escapeHtml((c.decidedByRole||session.role||'').replace('_',' ').toLowerCase())}</div>
+            </div>
+            <div style="text-align:right">
+              <div class="pdf-sig-l">Decided on</div>
+              <div class="pdf-sig-v mono">${(c.decision?.decidedAt||c.decidedAt||new Date().toISOString()).replace('T',' ').slice(0,19)} UTC</div>
+            </div>
+            <div>
+              <div class="pdf-sig-l">Source CSV hash</div>
+              <div class="pdf-sig-v mono">${(c.upload?.sha256||'').slice(0,32)}…</div>
+            </div>
+            <div style="text-align:right">
+              <div class="pdf-sig-l">Engine version</div>
+              <div class="pdf-sig-v mono">v0.2.0 · ${STATE_VERSION}</div>
+            </div>
+          </div>
           <div class="pdf-appeals">
             <h3>If you disagree with this outcome</h3>
             <p>You may submit an appeal within 14 days by replying to the email this report was sent with. Include the review reference shown at the top of this document. Appeals are reviewed by a senior member of the Risk Operations team and a written response is provided within five business days.</p>
           </div>
           <div class="pdf-footer">
-            <span>${escapeHtml(session.name)} · ${session.email}</span>
-            <span>sha256:${(c.upload?.sha256||'').slice(0,12)}… · engine v0.1.0+a3f9c2</span>
+            <span>Atlas Funded Ltd. · Risk Operations · ${escapeHtml(session.email)}</span>
+            <span>${c.reviewId} · ${new Date().toISOString().slice(0,10)}</span>
           </div>
         </div>
       </div>
@@ -1664,10 +1707,10 @@ function renderPdfModal(c){
 /* ─── sign-in ──────────────────────────────────────────────────────────── */
 function renderSignIn(){
   return `<div class="signin-shell"><div class="signin">
-    <div class="brand"><span class="brand-mark"></span><span>Atlas <span style="color:var(--brand)">Funded</span></span></div>
+    <div class="brand">${atlasWordmark(22)}</div>
     <h1>Sign in</h1><p>We'll email you a one-time link.</p>
     <form id="signInForm">
-      <div class="field"><label>Email</label><input name="email" type="email" required value="cian@atlasfunded.com" /></div>
+      <div class="field"><label>Email</label><input name="email" type="email" required value="jeremy.bridges@atlasfunded.com" /></div>
       <button class="btn primary" type="submit" style="width:100%">Send magic link</button>
     </form>
     <p style="margin-top:16px">Internal use only · access by allow-list</p>
@@ -1715,6 +1758,7 @@ function decide(caseId, verdict){
   if(!confirm(`Confirm decision: ${verdict.replaceAll('_',' ')}?\nThis locks the case and is audit-logged.`)) return;
   c.status='DECIDED'; c.lockedAt=new Date().toISOString(); c.decidedAt=c.lockedAt;
   c.decidedBy=session.name; c.reviewer=c.reviewer||session.name;
+  c.decidedByTeam=session.team||''; c.decidedByRole=session.role; c.decidedByEmail=session.email;
   c.totalDeductionCents=liveDed;
   c.payableAmountCents=verdict==='REJECT'?0:c.reportedPnlCents-liveDed;
   c.decision={verdict, notes:''};
