@@ -344,6 +344,7 @@ let ruleConfig = {
   'tick_scalping.window_seconds': 10,
   'excessive_margin.max_margin_fraction': 0.80,
   'news_trading.window_seconds': 300,
+  'excessive_risk_taking.no_sl_threshold_fraction': 0.80,
   'senior_approval.threshold_cents': 50000,
 };
 
@@ -353,6 +354,7 @@ let ruleText = {
   TICK_SCALPING_CLUSTER: `**Tick-scalping / spam-trading pattern detected.**\n\nA cluster of three or more trades opened within a ten-second window suggests automated or bot-assisted execution.`,
   EXCESSIVE_MARGIN_USAGE: `**Excessive margin usage.**\n\nAtlas Funded prohibits gambling-style position sizing. Where the **cumulative** margin used by all simultaneously-open positions exceeds 80% of the account's initial balance at any point in time, every trade open during that window is treated as out of scope of the funded account program and any profit realised on those winners is excluded from the payable amount. Leverage applied: Forex 1:50, Indices 1:10, Commodities 1:10, Crypto 1:1 (Funded — applied uniformly to all phases for the breach calculation).`,
   NEWS_TRADING: `**Trading around high-impact news.**\n\nAtlas Funded accounts may not be traded within ±5 minutes of any HIGH-impact ("red folder") economic release. Profit on a winning trade with an open or close inside the news window is auto-deducted; losing trades inside the window stay in the case file as context but are not penalised. Multiple HIGH-impact releases at the same UTC moment (e.g. RBNZ Cash Rate + Rate Statement) appear under one card with a single deduction — the trade is flagged once, not per release. Calendar sources: ForexFactory, Investing.com, MyFxBook.`,
+  EXCESSIVE_RISK_TAKING: `**Excessive risk-taking — trading without stop-losses.**\n\nIf 80% or more of a trader's positions are placed without a stop-loss, the account is flagged for failure to apply standard risk management. The case is referred for manual review and Atlas Funded reserves the right to apply a deduction or reject the payout.`,
 };
 
 // 6-month rolling calendar of HIGH-impact (red folder) events.
@@ -464,7 +466,7 @@ let cases = [
 let auditLog = [];
 
 /* ─── persistence (localStorage) ──────────────────────────────────────── */
-const STATE_VERSION = '2026-04-30-pdf-footer-only';
+const STATE_VERSION = '2026-04-30-rule6-no-stop-loss';
 const STATE_KEY = 'atlas-funded-demo-state';
 function saveState(){
   try {
@@ -529,6 +531,7 @@ function csvRowToTrade(row){
     volume:Number(row.volume)||0, closeVolume:Number(row.close_volume)||0,
     openTimeMs:openMs, closeTimeMs:closeMs,
     openPrice:Number(row.open_price)||0, closePrice:Number(row.close_price)||0,
+    sl:Number(row.sl)||0, tp:Number(row.tp)||0,
     durationSeconds:Math.max(0, Math.floor((closeMs-openMs)/1000)),
   };
 }
@@ -765,6 +768,30 @@ function runNewsTradingRule(trades, events, windowSec){
     });
 }
 
+/* Rule 6 — Excessive risk-taking — flag-only (manual review). */
+function runExcessiveRiskTaking(trades, threshold){
+  if(trades.length===0) return null;
+  const noSl=trades.filter(t=>!t.sl || t.sl===0);
+  const fraction = noSl.length / trades.length;
+  if(fraction < threshold) return null;
+  noSl.sort((a,b)=>a.openTimeMs-b.openTimeMs);
+  return {
+    id:'b-no-sl', ruleKey:'EXCESSIVE_RISK_TAKING', kind:'flag', applied:true,
+    suggestedDeductionCents:0,
+    meta:{
+      noSlCount: noSl.length,
+      totalCount: trades.length,
+      fraction,
+      thresholdFraction: threshold,
+    },
+    trades: noSl.map(t=>({uid:t.uid,symbol:t.symbol,
+      open:isoUtcShort(t.openTimeMs),close:isoUtcShort(t.closeTimeMs),
+      openIso:new Date(t.openTimeMs).toISOString(),closeIso:new Date(t.closeTimeMs).toISOString(),
+      dur:durString(t.durationSeconds), profit:t.profitCents,
+      sl:t.sl, tp:t.tp})),
+  };
+}
+
 function buildAggregatesFromTrades(trades){
   if(trades.length===0) return {dailyPnl:[],perSymbolPnl:[],durationHist:[]};
   const daily=new Map();
@@ -830,6 +857,8 @@ async function runRealEngineOnFile(file, c){
     ruleConfig['tick_scalping.cluster_size'],
     ruleConfig['tick_scalping.window_seconds']));
   findings.push(...runNewsTradingRule(trades, economicEvents, ruleConfig['news_trading.window_seconds']));
+  const ert=runExcessiveRiskTaking(trades, ruleConfig['excessive_risk_taking.no_sl_threshold_fraction']);
+  if(ert) findings.push(ert);
 
   const aggs=buildAggregatesFromTrades(trades);
   const earliest=Math.min(...trades.map(t=>t.closeTimeMs));
@@ -861,6 +890,7 @@ function ruleLabel(key){
     TICK_SCALPING_CLUSTER:'Tick-scalping cluster',
     EXCESSIVE_MARGIN_USAGE:'Excessive margin usage',
     NEWS_TRADING:'Trading around high-impact news',
+    EXCESSIVE_RISK_TAKING:'Excessive risk-taking · no stop-loss',
   })[key] || key;
 }
 
