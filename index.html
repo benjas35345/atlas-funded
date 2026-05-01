@@ -203,6 +203,9 @@
   .pdf-doc .pdf-section{font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:#7a8290;font-weight:600;
     font-weight:600;border-bottom:.5px solid #e5e7eb;padding-bottom:6px;margin-bottom:10px;margin-top:18px}
   .pdf-doc .pdf-finding{border:1px solid #e5e7eb;padding:14px 16px;margin-bottom:10px;border-radius:4px;border-left:3px solid #c43c2e;background:#fff}
+  .pdf-doc .pdf-finding-hard{border-left-width:5px;border-left-color:#a01c10;background:#fff8f7}
+  .pdf-doc .pdf-finding-hard .pdf-finding-h .name{color:#a01c10}
+  .pdf-doc .pdf-finding-h .tag.tag-hard{background:#a01c10;letter-spacing:1.4px}
   .pdf-doc .pdf-finding-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
   .pdf-doc .pdf-finding-h .name{font-size:12px;font-weight:600;color:#0d1018}
   .pdf-doc .pdf-finding-h .tag{font-size:9px;letter-spacing:1px;text-transform:uppercase;font-weight:600;color:#fff;background:#c43c2e;padding:3px 7px;border-radius:3px;font-family:'JetBrains Mono',monospace}
@@ -350,11 +353,11 @@ let ruleConfig = {
 
 let ruleText = {
   SUB_3_MIN: `**Sub-3-minute trades are not eligible for payout.**\n\nAtlas Funded considers any trade held for less than three minutes to be out of scope of the funded account program. Profit realised on such a trade is excluded from the payable amount. Losing trades held under three minutes are not penalised.`,
-  CONCENTRATED_DAILY_LOSS: `**Risk exposure breach.**\n\nFor Atlas Funded accounts, the realised loss on any single instrument in a single UTC trading day must not exceed 50% of the account type's daily drawdown limit. Where this threshold is exceeded, the case is referred for manual review and Atlas Funded reserves the right to apply a deduction.`,
+  CONCENTRATED_DAILY_LOSS: `**Risk exposure breach — hard breach.**\n\nFor Atlas Funded accounts, the realised gross loss on any single instrument in a single UTC trading day must not exceed 50% of the account type's daily drawdown limit. Exceeding this threshold is a hard breach of the funded account program. The case is referred for senior review and Atlas Funded reserves the right to void the payout in part or in full, even where no per-trade deduction has been applied.`,
   TICK_SCALPING_CLUSTER: `**Tick-scalping / spam-trading pattern detected.**\n\nA cluster of three or more trades opened within a ten-second window suggests automated or bot-assisted execution.`,
   EXCESSIVE_MARGIN_USAGE: `**Excessive margin usage.**\n\nAtlas Funded prohibits gambling-style position sizing. Where the **cumulative** margin used by all simultaneously-open positions exceeds 80% of the account's initial balance at any point in time, every trade open during that window is treated as out of scope of the funded account program and any profit realised on those winners is excluded from the payable amount. Leverage applied: Forex 1:50, Indices 1:10, Commodities 1:10, Crypto 1:1 (Funded — applied uniformly to all phases for the breach calculation).`,
   NEWS_TRADING: `**Trading around high-impact news.**\n\nAtlas Funded accounts may not be traded within ±5 minutes of any HIGH-impact ("red folder") economic release. Profit on a winning trade with an open or close inside the news window is auto-deducted; losing trades inside the window stay in the case file as context but are not penalised. Multiple HIGH-impact releases at the same UTC moment (e.g. RBNZ Cash Rate + Rate Statement) appear under one card with a single deduction — the trade is flagged once, not per release. Calendar sources: ForexFactory, Investing.com, MyFxBook.`,
-  EXCESSIVE_RISK_TAKING: `**Excessive risk-taking — trading without stop-losses.**\n\nIf 80% or more of a trader's positions are placed without a stop-loss, the account is flagged for failure to apply standard risk management. The case is referred for manual review and Atlas Funded reserves the right to apply a deduction or reject the payout.`,
+  EXCESSIVE_RISK_TAKING: `**Excessive risk-taking — hard breach.**\n\nIf 80% or more of a trader's positions are placed without a stop-loss, this is a hard breach of standard risk management discipline. The case is referred for senior review and Atlas Funded reserves the right to void the payout in part or in full, even where no per-trade deduction has been applied.`,
 };
 
 // 6-month rolling calendar of HIGH-impact (red folder) events.
@@ -466,7 +469,7 @@ let cases = [
 let auditLog = [];
 
 /* ─── persistence (localStorage) ──────────────────────────────────────── */
-const STATE_VERSION = '2026-04-30-rule6-admin-row';
+const STATE_VERSION = '2026-05-01-hard-breach-tag';
 const STATE_KEY = 'atlas-funded-demo-state';
 function saveState(){
   try {
@@ -582,12 +585,16 @@ function runConcentratedDailyLoss(trades, ctx, multiplier){
     for(const t of ts) if(t.profitCents<0) netLoss+=-t.profitCents;
     if(netLoss<=thresholdCents) continue;
     const[symbol,date]=key.split('|');
-    const sorted=[...ts].sort((a,b)=>a.closeTimeMs-b.closeTimeMs);
+    // Risk exposure is calculated from GROSS LOSS only — winning trades on the same
+    // (symbol, day) are irrelevant to whether the breach occurred and shouldn't appear
+    // in the trade list shown to the reviewer or the trader.
+    const losersOnly=ts.filter(t=>t.profitCents<0).sort((a,b)=>a.closeTimeMs-b.closeTimeMs);
     findings.push({
       id:`b-cdl-${date}-${symbol}`, ruleKey:'CONCENTRATED_DAILY_LOSS',
       kind:'flag', applied:true, suggestedDeductionCents:0,
-      meta:{symbol,date,netLoss,threshold:thresholdCents,overBy:netLoss-thresholdCents},
-      trades:sorted.map(t=>({uid:t.uid,symbol:t.symbol,
+      meta:{symbol,date,netLoss,threshold:thresholdCents,overBy:netLoss-thresholdCents,
+        losingCount:losersOnly.length, totalOnDay:ts.length},
+      trades:losersOnly.map(t=>({uid:t.uid,symbol:t.symbol,
         open:isoUtcShort(t.openTimeMs),close:isoUtcShort(t.closeTimeMs),
         openIso:new Date(t.openTimeMs).toISOString(),closeIso:new Date(t.closeTimeMs).toISOString(),
         dur:durString(t.durationSeconds),profit:t.profitCents})),
@@ -880,6 +887,12 @@ function go(hash){window.location.hash = hash;}
 window.addEventListener('hashchange', () => {route = window.location.hash || '#/cases'; render();});
 
 const DEDUCTION_RULE_KEYS = new Set(['SUB_3_MIN','EXCESSIVE_MARGIN_USAGE','NEWS_TRADING']);
+/** Hard breaches: rules that represent a policy violation regardless of any
+ *  monetary deduction. These ALWAYS appear on the trader-facing PDF (even
+ *  when the suggested deduction is $0) and are rendered with a distinct
+ *  red "HARD BREACH" tag rather than the muted "Manual review" pill. */
+const HARD_BREACH_RULE_KEYS = new Set(['CONCENTRATED_DAILY_LOSS','EXCESSIVE_RISK_TAKING']);
+function isHardBreach(b){ return HARD_BREACH_RULE_KEYS.has(b.ruleKey); }
 function isDeductionRuleKey(k){return DEDUCTION_RULE_KEYS.has(k);}
 function isDeductionKind(b){return b.kind==='deduction' || (isDeductionRuleKey(b.ruleKey) && b.kind!=='flag');}
 
@@ -1134,8 +1147,9 @@ function renderAnalysisView(c){
         ${c.breaches.length===0?`<div class="card span2" style="grid-column:span 4;background:var(--ok-soft);border-color:rgba(95,208,155,.3);color:var(--ok);font-size:13px">✓ Clean — no rule breaches detected.</div>`:''}
         ${c.breaches.map(b=>{
           const auto=isDeductionKind(b);
-          return `<div class="bcard ${auto?'signal':'warn'}">
-            <div class="lbl ${auto?'s':'w'}">● ${auto?'Deduction':'Manual review'}</div>
+          const hb=isHardBreach(b);
+          return `<div class="bcard ${auto?'signal':(hb?'signal':'warn')}">
+            <div class="lbl ${auto?'s':(hb?'s':'w')}">● ${auto?'Deduction':(hb?'Hard breach':'Manual review')}</div>
             <div class="name">${ruleInstanceLabel(b)}</div>
             <div class="stat ${auto?'minus':''}">${auto?'−'+fmtCents(b.suggestedDeductionCents):(b.trades?.length||0)+' trades'}</div>
             <div class="meta">${auto?(b.applied?'Auto-applied to payable':'Excluded by reviewer'):'Reviewer judgment required'}</div>
@@ -1167,7 +1181,7 @@ function renderAnalysisView(c){
 }
 
 function renderFinding(c, b){
-  const kind=isDeductionKind(b)?'s':'w';
+  const kind=(isDeductionKind(b)||isHardBreach(b))?'s':'w';
   const trades=b.trades||[];
   const wording=ruleText[b.ruleKey]||'';
   const isLocked=!!c.lockedAt;
@@ -1177,7 +1191,7 @@ function renderFinding(c, b){
         <div class="l">
           <span class="ic-dot ${kind}"></span>
           <span class="finding-name">${ruleInstanceLabel(b)}</span>
-          <span class="finding-tag ${kind}">${isDeductionKind(b)?'Deduction':'Manual review'}</span>
+          <span class="finding-tag ${kind}">${isDeductionKind(b)?'Deduction':(isHardBreach(b)?'Hard breach':'Manual review')}</span>
         </div>
         <div class="r" onclick="event.stopPropagation()" style="gap:10px">
           <span>${trades.length} trade${trades.length===1?'':'s'}</span>
@@ -1595,7 +1609,7 @@ function renderAdminAudit(){
 function renderPdfModal(c){
   const liveDed=c.breaches.reduce((s,b)=>s+(b.applied?b.suggestedDeductionCents:0),0);
   const livePay=c.reportedPnlCents-liveDed;
-  const applied=c.breaches.filter(b=>b.applied&&b.suggestedDeductionCents>0);
+  const applied=c.breaches.filter(b=>b.applied && (b.suggestedDeductionCents>0 || isHardBreach(b)));
   const at=accountTypes[c.accountType]||{dailyDd:0,maxDd:0,label:c.accountType};
   const mult=ruleConfig['concentrated_daily_loss.per_asset_limit_multiplier'];
   const perAssetCents=Math.round(c.accountSizeCents*at.dailyDd*mult);
@@ -1667,10 +1681,15 @@ function renderPdfModal(c){
                   <tr><td style="color:#959aa2">Over-by</td><td style="color:#c43c2e">${fmtCents(b.meta.overBy)}</td><td colspan="2"></td></tr>
                 </tbody></table>`;
               }
-              return `<div class="pdf-finding">
+              const _hb = isHardBreach(b);
+              const _tagLabel = _hb ? 'Hard breach' : 'Deduction';
+              const _tagAmount = (_hb && b.suggestedDeductionCents===0)
+                ? 'No monetary deduction'
+                : fmtCents(b.suggestedDeductionCents);
+              return `<div class="pdf-finding ${_hb?'pdf-finding-hard':''}">
                 <div class="pdf-finding-h">
                   <div class="name">${ruleInstanceLabel(b)}</div>
-                  <div class="tag">Deduction · ${fmtCents(b.suggestedDeductionCents)}</div>
+                  <div class="tag ${_hb?'tag-hard':''}">${_tagLabel} · ${_tagAmount}</div>
                 </div>
                 <div class="pdf-finding-body">${escapeHtml(wording)}</div>
                 ${dataRow}
