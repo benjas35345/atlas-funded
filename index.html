@@ -469,7 +469,7 @@ let cases = [
 let auditLog = [];
 
 /* ─── persistence (localStorage) ──────────────────────────────────────── */
-const STATE_VERSION = '2026-05-01-hard-breach-tag';
+const STATE_VERSION = '2026-05-01-sl-tp-columns';
 const STATE_KEY = 'atlas-funded-demo-state';
 function saveState(){
   try {
@@ -936,7 +936,7 @@ function renderShell(content){
   return `
     <div class="app">
       <nav class="nav">
-        <div class="brand">${atlasWordmark(22)}</div>
+        <div class="brand"><span class="brand-word">Atlas<b>Funded</b></span></div>
         <div class="nav-section">
           <h6>Workspace</h6>
           <a href="#/cases" class="${isActive('#/cases')}">Cases <span class="badge">${cases.length}</span></a>
@@ -1221,6 +1221,7 @@ function renderFinding(c, b){
           <table class="trade-table">
             <thead><tr><th>UID</th><th>Symbol</th><th>Open · Close (UTC)</th><th>Duration</th>
               ${b.ruleKey==='EXCESSIVE_MARGIN_USAGE'?'<th>Margin · leverage</th>':''}
+              ${b.ruleKey==='EXCESSIVE_RISK_TAKING'?'<th>Stop-loss</th><th>Take-profit</th>':''}
               <th style="text-align:right">Profit</th></tr></thead>
             <tbody>
               ${trades.map(t=>`<tr ${isDeductionKind(b)?'class="row-flag"':''}>
@@ -1229,6 +1230,7 @@ function renderFinding(c, b){
                 <td>${escapeHtml(t.open)} → ${escapeHtml(t.close)}</td>
                 <td>${t.dur}</td>
                 ${b.ruleKey==='EXCESSIVE_MARGIN_USAGE'?`<td>${t.notional||''}</td>`:''}
+                ${b.ruleKey==='EXCESSIVE_RISK_TAKING'?`<td style="color:var(--signal)">${(!t.sl||t.sl===0)?'— none —':t.sl}</td><td style="color:var(--muted)">${(!t.tp||t.tp===0)?'—':t.tp}</td>`:''}
                 <td class="num ${t.profit>=0?'plus':'minus'}">${fmtCents(t.profit,{sign:'always'})}</td>
               </tr>`).join('')}
             </tbody>
@@ -1247,6 +1249,13 @@ function renderFinding(c, b){
 
 function renderBreachMeta(b){
   const m=b.meta;
+  if(b.ruleKey==='EXCESSIVE_RISK_TAKING' && m){
+    const pct=(m.fraction*100).toFixed(1);
+    const thr=(m.thresholdFraction*100).toFixed(0);
+    return `<div class="mono" style="font-size:11.5px;color:var(--muted);margin-bottom:10px">
+      ${m.noSlCount} of ${m.totalCount} trades placed without a stop-loss · <span style="color:var(--signal)">${pct}%</span> · threshold ${thr}%
+    </div>`;
+  }
   if(b.ruleKey==='CONCENTRATED_DAILY_LOSS'){
     return `<div class="mono" style="font-size:11.5px;color:var(--muted);margin-bottom:10px">
       ${m.symbol} · ${m.date} · net loss ${fmtCents(m.netLoss)} · threshold ${fmtCents(m.threshold)} · over by <span style="color:var(--signal)">${fmtCents(m.overBy)}</span>
@@ -1628,7 +1637,7 @@ function renderPdfModal(c){
         </div>
         <div class="pdf-doc">
           <div class="pdf-header">
-            <div class="pdf-brand"><span class="pdf-brand-mark">${atlasMarkSvg(32)}</span><span>Atlas<b>Funded</b><span style="color:#7a8290;font-weight:500;margin-left:8px">· Risk Operations</span></span></div>
+            <div class="pdf-brand"><span>Atlas<b>Funded</b><span style="color:#7a8290;font-weight:500;margin-left:8px">· Risk Operations</span></span></div>
             <div style="text-align:right">
               <div class="mono" style="font-size:10px;color:#5b6470">${c.reviewId}</div>
               <div class="mono" style="font-size:9px;color:#959aa2;margin-top:2px">${new Date().toISOString().slice(0,10)} UTC</div>
@@ -1710,6 +1719,18 @@ function renderPdfModal(c){
                         <td style="text-align:right;color:${t.profit>=0?'#2f8a5e':'#c43c2e'}">${fmtCents(t.profit,{sign:'always'})}</td></tr>`;
                     }).join('')}</tbody></table>
                 `:`
+                  ${b.ruleKey==='EXCESSIVE_RISK_TAKING' ? `
+                  <table class="pdf-table">
+                    <thead><tr><th>Trade ID</th><th>Symbol</th><th>Open (UTC)</th><th>Close (UTC)</th><th>Duration</th><th>Stop-loss</th><th>Take-profit</th><th style="text-align:right">Profit</th></tr></thead>
+                    <tbody>${b.trades.map(t=>`<tr>
+                      <td>${t.uid}</td><td>${t.symbol}</td>
+                      <td>${escapeHtml((t.openIso||'').replace('T',' ').slice(0,19)||t.open)}</td>
+                      <td>${escapeHtml((t.closeIso||'').replace('T',' ').slice(0,19)||t.close)}</td>
+                      <td>${t.dur||''}</td>
+                      <td style="color:#a01c10">${(!t.sl||t.sl===0)?'— none —':t.sl}</td>
+                      <td style="color:#5b6470">${(!t.tp||t.tp===0)?'—':t.tp}</td>
+                      <td style="text-align:right;color:${t.profit>=0?'#2f8a5e':'#c43c2e'}">${fmtCents(t.profit,{sign:'always'})}</td>
+                    </tr>`).join('')}</tbody></table>` : `
                   <table class="pdf-table">
                     <thead><tr><th>Trade ID</th><th>Symbol</th><th>Open (UTC)</th><th>Close (UTC)</th><th>Duration</th><th style="text-align:right">Profit</th></tr></thead>
                     <tbody>${b.trades.map(t=>`<tr>
@@ -1718,16 +1739,13 @@ function renderPdfModal(c){
                       <td>${escapeHtml((t.closeIso||'').replace('T',' ').slice(0,19)||t.close)}</td>
                       <td>${t.dur||''}</td>
                       <td style="text-align:right;color:${t.profit>=0?'#2f8a5e':'#c43c2e'}">${fmtCents(t.profit,{sign:'always'})}</td>
-                    </tr>`).join('')}</tbody></table>
+                    </tr>`).join('')}</tbody></table>`}
                 `):''}
               </div>`;
             }).join('')}
           `}
 
-          <div class="pdf-appeals">
-            <h3>If you disagree with this outcome</h3>
-            <p>You may submit an appeal within 14 days by replying to the email this report was sent with. Include the review reference shown at the top of this document. Appeals are reviewed by a senior member of the Risk Operations team and a written response is provided within five business days.</p>
-          </div>
+
           <div class="pdf-footer">
             <span>${escapeHtml(c.decidedBy||session.name)} · risk@atlasfunded.com</span>
             <span>${c.reviewId} · ${new Date().toISOString().slice(0,10)}</span>
@@ -1740,7 +1758,7 @@ function renderPdfModal(c){
 /* ─── sign-in ──────────────────────────────────────────────────────────── */
 function renderSignIn(){
   return `<div class="signin-shell"><div class="signin">
-    <div class="brand">${atlasWordmark(22)}</div>
+    <div class="brand"><span class="brand-word">Atlas<b>Funded</b></span></div>
     <h1>Sign in</h1><p>We'll email you a one-time link.</p>
     <form id="signInForm">
       <div class="field"><label>Email</label><input name="email" type="email" required value="jeremy.bridges@atlasfunded.com" /></div>
