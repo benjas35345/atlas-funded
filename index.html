@@ -353,11 +353,11 @@ let ruleConfig = {
 
 let ruleText = {
   SUB_3_MIN: `**Sub-3-minute trades are not eligible for payout.**\n\nAtlas Funded considers any trade held for less than three minutes to be out of scope of the funded account program. Profit realised on such a trade is excluded from the payable amount. Losing trades held under three minutes are not penalised.`,
-  CONCENTRATED_DAILY_LOSS: `**Risk exposure breach — hard breach.**\n\nFor Atlas Funded accounts, the realised gross loss on any single instrument in a single UTC trading day must not exceed 50% of the account type's daily drawdown limit. Exceeding this threshold is a hard breach of the funded account program. The case is referred for senior review and Atlas Funded reserves the right to void the payout in part or in full, even where no per-trade deduction has been applied.`,
+  CONCENTRATED_DAILY_LOSS: `**Risk exposure breach — hard breach.**\n\nFor Atlas Funded accounts, the realised gross loss on any single instrument in a single UTC trading day must not exceed 50% of the account type's daily drawdown limit. Exceeding this threshold is a hard breach of the funded account program. The case is referred for senior review and This breach is not eligible for a partial deduction; it leads to account closure and the payout is voided in full.`,
   TICK_SCALPING_CLUSTER: `**Tick-scalping / spam-trading pattern detected.**\n\nA cluster of three or more trades opened within a ten-second window suggests automated or bot-assisted execution.`,
   EXCESSIVE_MARGIN_USAGE: `**Excessive margin usage.**\n\nAtlas Funded prohibits gambling-style position sizing. Where the **cumulative** margin used by all simultaneously-open positions exceeds 80% of the account's initial balance at any point in time, every trade open during that window is treated as out of scope of the funded account program and any profit realised on those winners is excluded from the payable amount. Leverage applied: Forex 1:50, Indices 1:10, Commodities 1:10, Crypto 1:1 (Funded — applied uniformly to all phases for the breach calculation).`,
   NEWS_TRADING: `**Trading around high-impact news.**\n\nAtlas Funded accounts may not be traded within ±5 minutes of any HIGH-impact ("red folder") economic release. Profit on a winning trade with an open or close inside the news window is auto-deducted; losing trades inside the window stay in the case file as context but are not penalised. Multiple HIGH-impact releases at the same UTC moment (e.g. RBNZ Cash Rate + Rate Statement) appear under one card with a single deduction — the trade is flagged once, not per release. Calendar sources: ForexFactory, Investing.com, MyFxBook.`,
-  EXCESSIVE_RISK_TAKING: `**Excessive risk-taking — hard breach.**\n\nIf 80% or more of a trader's positions are placed without a stop-loss, this is a hard breach of standard risk management discipline. The case is referred for senior review and Atlas Funded reserves the right to void the payout in part or in full, even where no per-trade deduction has been applied.`,
+  EXCESSIVE_RISK_TAKING: `**Excessive risk-taking — hard breach.**\n\nIf 80% or more of a trader's positions are placed without a stop-loss, this is a hard breach of standard risk management discipline. The case is referred for senior review and This breach is not eligible for a partial deduction; it leads to account closure and the payout is voided in full.`,
 };
 
 // 6-month rolling calendar of HIGH-impact (red folder) events.
@@ -469,7 +469,7 @@ let cases = [
 let auditLog = [];
 
 /* ─── persistence (localStorage) ──────────────────────────────────────── */
-const STATE_VERSION = '2026-05-01-sl-tp-columns';
+const STATE_VERSION = '2026-05-01-hard-breach-no-deduction-ui';
 const STATE_KEY = 'atlas-funded-demo-state';
 function saveState(){
   try {
@@ -1131,7 +1131,7 @@ function caseHeader(c, livePayable, liveDeduction){
 }
 
 function renderAnalysisView(c){
-  const liveDeductionCents=c.breaches.reduce((s,b)=>s+(b.applied?b.suggestedDeductionCents:0),0);
+  const liveDeductionCents=c.breaches.reduce((s,b)=>s+(b.applied && !isHardBreach(b)?b.suggestedDeductionCents:0),0);
   const livePayableCents=c.reportedPnlCents-liveDeductionCents;
   const isLocked=!!c.lockedAt;
   return `
@@ -1195,21 +1195,27 @@ function renderFinding(c, b){
         </div>
         <div class="r" onclick="event.stopPropagation()" style="gap:10px">
           <span>${trades.length} trade${trades.length===1?'':'s'}</span>
-          <label style="display:flex;align-items:center;gap:6px;font-family:'Inter';font-size:11px;color:var(--muted)">
-            <span style="color:var(--faint)">deduct $</span>
-            <input type="number" step="0.01" min="0" inputmode="decimal"
-              value="${(b.suggestedDeductionCents/100).toFixed(2)}"
-              ${isLocked?'disabled':''}
-              onclick="event.stopPropagation()"
-              onchange="setBreachDeduction('${c.id}','${b.id}',this.value)"
-              style="width:90px;background:var(--bg-elev);border:1px solid var(--line-strong);
-                border-radius:6px;padding:4px 8px;font-family:'JetBrains Mono',monospace;font-size:11px;
-                color:var(--ink);text-align:right" />
-            <input type="checkbox" class="toggle" ${b.applied?'checked':''} ${isLocked?'disabled':''}
-              onclick="event.stopPropagation()"
-              onchange="toggleBreach('${c.id}','${b.id}',this.checked)" />
-            apply
-          </label>
+          ${isHardBreach(b) ? `
+            <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid #a01c10;background:rgba(160,28,16,.12);color:#ff8b80;border-radius:6px;font-family:'Inter';font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase">
+              Not deductible · leads to account closure
+            </span>
+          ` : `
+            <label style="display:flex;align-items:center;gap:6px;font-family:'Inter';font-size:11px;color:var(--muted)">
+              <span style="color:var(--faint)">deduct $</span>
+              <input type="number" step="0.01" min="0" inputmode="decimal"
+                value="${(b.suggestedDeductionCents/100).toFixed(2)}"
+                ${isLocked?'disabled':''}
+                onclick="event.stopPropagation()"
+                onchange="setBreachDeduction('${c.id}','${b.id}',this.value)"
+                style="width:90px;background:var(--bg-elev);border:1px solid var(--line-strong);
+                  border-radius:6px;padding:4px 8px;font-family:'JetBrains Mono',monospace;font-size:11px;
+                  color:var(--ink);text-align:right" />
+              <input type="checkbox" class="toggle" ${b.applied?'checked':''} ${isLocked?'disabled':''}
+                onclick="event.stopPropagation()"
+                onchange="toggleBreach('${c.id}','${b.id}',this.checked)" />
+              apply
+            </label>
+          `}
         </div>
       </summary>
       <div class="body">
@@ -1776,7 +1782,7 @@ function toggleBreach(caseId, breachId, applied){
   const c=caseById(caseId); if(!c) return;
   const b=c.breaches.find(x=>x.id===breachId); if(!b) return;
   b.applied=applied;
-  c.totalDeductionCents=c.breaches.reduce((s,x)=>s+(x.applied?x.suggestedDeductionCents:0),0);
+  c.totalDeductionCents=c.breaches.reduce((s,x)=>s+(x.applied && !isHardBreach(x)?x.suggestedDeductionCents:0),0);
   c.payableAmountCents=c.reportedPnlCents-c.totalDeductionCents;
   audit('BREACH_TOGGLED',{breachId, ruleKey:b.ruleKey, applied, newTotalDeductionCents:c.totalDeductionCents}, c.id);
   render();
@@ -1791,7 +1797,7 @@ function setBreachDeduction(caseId, breachId, dollarsRaw){
   const before=b.suggestedDeductionCents;
   b.suggestedDeductionCents=cents;
   if(cents>0 && !b.applied) b.applied=true;
-  c.totalDeductionCents=c.breaches.reduce((s,x)=>s+(x.applied?x.suggestedDeductionCents:0),0);
+  c.totalDeductionCents=c.breaches.reduce((s,x)=>s+(x.applied && !isHardBreach(x)?x.suggestedDeductionCents:0),0);
   c.payableAmountCents=c.reportedPnlCents-c.totalDeductionCents;
   audit('BREACH_DEDUCTION_SET',{breachId, ruleKey:b.ruleKey, beforeCents:before, afterCents:cents, newTotalDeductionCents:c.totalDeductionCents}, c.id);
   render();
