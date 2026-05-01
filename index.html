@@ -469,7 +469,7 @@ let cases = [
 let auditLog = [];
 
 /* ─── persistence (localStorage) ──────────────────────────────────────── */
-const STATE_VERSION = '2026-05-01-hard-breach-no-deduction-ui';
+const STATE_VERSION = '2026-05-01-pdf-download-fix';
 const STATE_KEY = 'atlas-funded-demo-state';
 function saveState(){
   try {
@@ -1637,7 +1637,7 @@ function renderPdfModal(c){
         <div class="modal-header">
           <div style="font-weight:600;font-size:13px;color:#0a0d14">PDF preview · ${c.reviewId}</div>
           <div style="display:flex;gap:8px">
-            <button class="btn" style="background:#fafafa;color:#0a0d14;border-color:#e5e7eb">Download .pdf</button>
+            <button class="btn" onclick="downloadPdfPreview('${c.id}')" style="background:#fafafa;color:#0a0d14;border-color:#e5e7eb">Download .pdf</button>
             <span class="x" onclick="closePdfPreview()">×</span>
           </div>
         </div>
@@ -1824,6 +1824,45 @@ function decide(caseId, verdict){
 }
 
 function openPdfPreview(caseId){pdfCaseId=caseId; audit('REPORT_GENERATED',{caseId, format:'PDF'}, caseId); render();}
+
+function downloadPdfPreview(caseId){
+  // Render the PDF document into a new window with print-friendly styling, then call
+  // window.print() so the user can choose "Save as PDF" from the browser print dialog.
+  // No external libraries needed — this is the standard browser-side PDF export path.
+  const c = caseById(caseId); if(!c) return;
+  // Pull the same HTML body the on-screen preview uses
+  const previewEl = document.querySelector('.modal .pdf-doc');
+  if(!previewEl){ alert('Open the PDF preview first, then click Download.'); return; }
+  const docHtml = previewEl.outerHTML;
+  // Pull the .pdf-doc CSS rules from the page so the printed copy looks identical
+  const styles = Array.from(document.styleSheets)
+    .map(sheet=>{
+      try { return Array.from(sheet.cssRules||[]).map(r=>r.cssText).join('\n'); }
+      catch(e){ return ''; }
+    }).join('\n');
+  const fileName = `Atlas Funded · ${c.reviewId} · ${escapeHtml(c.traderEmail||'').split('@')[0]}.pdf`
+    .replace(/[^a-zA-Z0-9·.\- @]/g,'');
+  const w = window.open('', '_blank', 'width=900,height=1200');
+  if(!w){ alert('Pop-up blocker prevented opening the print window. Allow pop-ups for this site and try again.'); return; }
+  w.document.open();
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${fileName}</title>
+    <style>
+      ${styles}
+      @page { size: A4; margin: 12mm; }
+      body { margin: 0; background: #fff; }
+      .pdf-doc { box-shadow: none !important; max-width: 100% !important; padding: 0 !important; }
+      .pdf-doc::before { display: none !important; }
+      @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+    </style>
+  </head><body>${docHtml}</body></html>`);
+  w.document.close();
+  // Give the new window a tick to render fonts/styles, then trigger print.
+  setTimeout(()=>{
+    try { w.focus(); w.print(); }
+    catch(e){ console.error(e); }
+  }, 350);
+  audit('REPORT_DOWNLOADED', { caseId, format:'PDF', fileName }, caseId);
+}
 function closePdfPreview(){pdfCaseId=null; render();}
 
 function removeAllowed(email){
