@@ -313,14 +313,35 @@ const LEVERAGE_TABLE = {
 };
 
 const CONTRACT_SIZE_TABLE = {
+  // Forex — 100,000 units of base currency per lot
   EURUSD:100000, GBPUSD:100000, USDJPY:100000, USDCHF:100000, AUDUSD:100000,
   USDCAD:100000, NZDUSD:100000, EURGBP:100000, EURJPY:100000, GBPJPY:100000,
-  AUDJPY:100000, EURAUD:100000,
-  XAUUSD:100, XAGUSD:5000,
-  NAS100:1, US30:1, SPX500:1, GER40:1, UK100:1, JPN225:1,
-  USOIL:1000, UKOIL:1000,
-  BTCUSD:1, ETHUSD:1,
+  AUDJPY:100000, EURAUD:100000, GBPAUD:100000, GBPNZD:100000, EURNZD:100000,
+  EURCAD:100000, EURCHF:100000, AUDCAD:100000, AUDNZD:100000, NZDJPY:100000,
+  CADJPY:100000, CHFJPY:100000,
+  // Metals
+  XAUUSD:100, XAGUSD:5000, XPTUSD:100, XPDUSD:100,
+  // Indices — 1 unit of the index per lot
+  NAS100:1, US30:1, SPX500:1, GER40:1, UK100:1, JPN225:1, AUS200:1,
+  FRA40:1, NDX:1, DOW:1, HK50:1, EUSTX:1,
+  // Oils — 1,000 barrels per lot
+  USOIL:1000, UKOIL:1000, WTI:1000, BRENT:1000, NATGAS:1000,
+  // Crypto — 1 coin per lot
+  BTCUSD:1, ETHUSD:1, LTCUSD:1, BCHUSD:1, XRPUSD:1, SOLUSD:1, ADAUSD:1,
+  DOTUSD:1, AVAXUSD:1, MATICUSD:1, LINKUSD:1,
 };
+
+// Class-aware fallback so unknown symbols don't get the FOREX 100,000 default.
+const DEFAULT_CONTRACT_SIZE_BY_CLASS = {
+  FOREX:       100000,
+  INDICES:     1,
+  COMMODITIES: 100,   // matches gold; oil-like new symbols should be added explicitly
+  CRYPTO:      1,
+};
+function contractSizeFor(symbol){
+  if(CONTRACT_SIZE_TABLE[symbol] != null) return CONTRACT_SIZE_TABLE[symbol];
+  return DEFAULT_CONTRACT_SIZE_BY_CLASS[classifyAsset(symbol)] ?? 100000;
+}
 
 function classifyAsset(symbol) {
   const s = String(symbol).toUpperCase();
@@ -469,7 +490,7 @@ let cases = [
 let auditLog = [];
 
 /* ─── persistence (localStorage) ──────────────────────────────────────── */
-const STATE_VERSION = '2026-05-01-pdf-download-fix';
+const STATE_VERSION = '2026-05-01-contract-size-fix';
 const STATE_KEY = 'atlas-funded-demo-state';
 function saveState(){
   try {
@@ -645,7 +666,7 @@ function runExcessiveMargin(trades, ctx, maxFraction){
   // Always uses FUNDED leverage (the stricter, real-broker side) regardless of evaluation phase.
   // Decorate trades with margin metadata.
   const decorated=trades.map(t=>{
-    const cs=CONTRACT_SIZE_TABLE[t.symbol] ?? 100000;
+    const cs=contractSizeFor(t.symbol);
     const assetClass=classifyAsset(t.symbol);
     const leverage=LEVERAGE_TABLE[assetClass]?.FUNDED ?? 0;
     const notionalCents=Math.round(t.volume*cs*t.openPrice*100);
